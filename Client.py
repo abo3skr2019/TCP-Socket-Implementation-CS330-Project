@@ -48,14 +48,14 @@ with open('ClientConfig.json', 'r') as config_file:
 
 interface = config['network_interface']
 
-host = input("Client: ")
+Server = input("Server: ")
 port = int(input("Port: "))
 
 # Attempt connection to server
 try:
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.bind((interface, 0))  # Bind to the specified interface
-    sock.connect((host, port))
+    sock.connect((Server, port))
 except:
     print("Server is down, please try later.")
     input("Press enter to quit")
