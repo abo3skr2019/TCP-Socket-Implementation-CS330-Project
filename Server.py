@@ -18,21 +18,10 @@ def calculate_checksum(data):
 def validate_checksum(data, received_checksum):
     return calculate_checksum(data) == received_checksum
 
-def introduce_error(data, probability):
-    if random.random() < probability:
-        error_index = random.randint(0, len(data) - 1)
-        data = bytearray(data)
-        data[error_index] ^= 0xFF
-    return data
-
 def handle_client(client_socket):
     while True:
         try:
-            message_length = client_socket.recv(2)
-            if not message_length:
-                break
-            message_length = struct.unpack('!H', message_length)[0]
-            message = client_socket.recv(message_length)
+            message = client_socket.recv(1024)
             if not message:
                 break
             received_checksum = struct.unpack('!H', message[-2:])[0]
