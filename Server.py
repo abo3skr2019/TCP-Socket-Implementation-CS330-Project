@@ -60,6 +60,6 @@ def start_server(config):
         client_handler.start()
 
 if __name__ == "__main__":
-    with open('config.json', 'r') as config_file:
+    with open('ServerConfig.json', 'r') as config_file:
         config = json.load(config_file)
     start_server(config)
