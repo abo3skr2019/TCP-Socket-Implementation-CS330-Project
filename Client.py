@@ -30,6 +30,7 @@ def receive(sock):
             print(data.decode("utf-8"))
         except:
             print("You have been disconnected from the server")
+            sys.exit(0)
             break
 
 # Load configuration from config.json
@@ -66,6 +67,12 @@ while True:
     message_bytes = message.encode('utf-8')
     checksum = calculate_checksum(message_bytes)
     message_with_checksum = message_bytes + struct.pack('!H', checksum)
-    error_probability = random.choice([0.3, 0.5, 0.8])
-    message_with_checksum = introduce_error(message_with_checksum, error_probability)
+    set_probability_list = [0.3, 0.5, 0.8]
+    Error_Test = False
+    if Error_Test ==True :
+        set_probability_list = [0.3, 0.5, 0.8]
+        error_probability = set_probability_list[0]
+        message_with_checksum = introduce_error(message_with_checksum, error_probability)
+        
+    
     sock.sendall(message_with_checksum)

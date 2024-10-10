@@ -1,7 +1,6 @@
 import socket
 import threading
 import struct
-import random
 import json
 
 def calculate_checksum(data):
@@ -28,6 +27,7 @@ def handle_client(client_socket):
             message = message[:-2]
             if validate_checksum(message, received_checksum):
                 client_socket.sendall(b"Message received correctly")
+                print(f"Received message: {message.decode('utf-8')}")
             else:
                 client_socket.sendall(b"Error: The Received Message is not correct")
         except Exception as e:
@@ -35,8 +35,7 @@ def handle_client(client_socket):
             break
     client_socket.close()
 
-def start_server(config):
-    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+def start_server(config, server_socket):
     network_interface = config['network_interface']
     port = config['port']
     server_socket.bind((network_interface, port))
@@ -48,7 +47,9 @@ def start_server(config):
         client_handler = threading.Thread(target=handle_client, args=(client_socket,))
         client_handler.start()
 
+
 if __name__ == "__main__":
     with open('ServerConfig.json', 'r') as config_file:
         config = json.load(config_file)
-    start_server(config)
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)    
+    start_server(config, server_socket)
