@@ -6,6 +6,9 @@ import random
 import sys
 
 def calculate_checksum(data):
+    """
+    Calculate the checksum for the given data.
+    """
     checksum = 0
     for i in range(0, len(data), 2):
         if i + 1 < len(data):
@@ -17,6 +20,9 @@ def calculate_checksum(data):
     return ~checksum & 0xFFFF
 
 def introduce_error(data, probability):
+    """
+    Introduce an error in the data based on the given probability.
+    """
     if random.random() < probability:
         error_index = random.randint(0, len(data) - 1)
         data = bytearray(data)
@@ -24,6 +30,9 @@ def introduce_error(data, probability):
     return bytes(data)
 
 def receive(sock):
+    """
+    Receive data from the socket.
+    """
     while True:
         try:
             data = sock.recv(1024)
@@ -52,8 +61,8 @@ except:
     input("Press enter to quit")
     sys.exit(0)
 
-receiveThread = threading.Thread(target=receive, args=(sock,))
-receiveThread.start()
+receive_thread = threading.Thread(target=receive, args=(sock,))
+receive_thread.start()
 
 while True:
     message = input()
@@ -64,15 +73,15 @@ while True:
     if not message:
         print("Error: The entered message is not valid")
         continue
+
     message_bytes = message.encode('utf-8')
     checksum = calculate_checksum(message_bytes)
     message_with_checksum = message_bytes + struct.pack('!H', checksum)
-    set_probability_list = [0.3, 0.5, 0.8]
-    Error_Test = False
-    if Error_Test ==True :
+
+    error_test = False
+    if error_test:
         set_probability_list = [0.3, 0.5, 0.8]
         error_probability = set_probability_list[0]
         message_with_checksum = introduce_error(message_with_checksum, error_probability)
-        
-    
+
     sock.sendall(message_with_checksum)
