@@ -4,6 +4,7 @@ import json
 import struct
 import random
 import sys
+import signal
 from Checksum import calculate_checksum
 
 def introduce_error(data, probability):
@@ -31,6 +32,14 @@ def receive(sock):
             sys.exit(0)
             break
 
+def signal_handler(sig, frame):
+    """
+    Handle the SIGINT signal (Ctrl+C) to gracefully exit the program.
+    """
+    print("\nExiting...")
+    sock.close()
+    sys.exit(0)
+
 # Load configuration from ClientConfig.json
 try:
     with open('ClientConfig.json', 'r') as config_file:
@@ -55,10 +64,14 @@ try:
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.bind((interface, 0))  # Bind to the specified network interface
     sock.connect((Server, port))
+    print("Successfully connected to server")
 except:
     print("Server is down, please try later.")
     input("Press enter to quit")
     sys.exit(0)
+
+# Register the signal handler for SIGINT
+signal.signal(signal.SIGINT, signal_handler)
 
 # Start a thread to receive data from the server
 receive_thread = threading.Thread(target=receive, args=(sock,))
