@@ -2,20 +2,8 @@ import socket
 import threading
 import struct
 import json
-
-def calculate_checksum(data):
-    checksum = 0
-    for i in range(0, len(data), 2):
-        if i + 1 < len(data):
-            word = (data[i] << 8) + data[i + 1]
-        else:
-            word = data[i] << 8
-        checksum += word
-        checksum = (checksum & 0xFFFF) + (checksum >> 16)
-    return ~checksum & 0xFFFF
-
-def validate_checksum(data, received_checksum):
-    return calculate_checksum(data) == received_checksum
+import sys
+from Checksum import validate_checksum
 
 def handle_client(client_socket):
     while True:
@@ -49,7 +37,13 @@ def start_server(config, server_socket):
 
 
 if __name__ == "__main__":
-    with open('ServerConfig.json', 'r') as config_file:
-        config = json.load(config_file)
+    try:
+        with open('ServerConfig.json', 'r') as config_file:
+            config = json.load(config_file)
+    except FileNotFoundError as e:
+        print(f"Error: {e}")
+        print("Please make sure that the ServerConfig.json file exists")
+        input("Press enter to quit")
+        sys.exit(1)
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)    
     start_server(config, server_socket)
