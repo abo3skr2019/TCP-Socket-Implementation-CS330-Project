@@ -1,7 +1,7 @@
 {
     "network_interface": "0.0.0.0",
     "error_simulation": {
-        "enabled": true,
+        "enabled": false,
         "probability": 0.3
     }
 }
