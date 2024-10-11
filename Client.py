@@ -4,7 +4,7 @@ import json
 import struct
 import random
 import sys
-#dddd
+
 def calculate_checksum(data):
     """
     Calculate the checksum for the given data.
