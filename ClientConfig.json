@@ -1,5 +1,6 @@
 {
     "network_interface": "0.0.0.0",
+    "broadcast_port": 5000,
     "error_simulation": {
         "enabled": false,
         "probability": 0.3

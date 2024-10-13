@@ -40,6 +40,66 @@ def signal_handler(sig, frame):
     sock.close()
     sys.exit(0)
 
+def get_local_ip_addresses():
+    """
+    Retrieve all local IP addresses associated with the network interfaces.
+    """
+    ip_addresses = []
+    hostname = socket.gethostname()
+    local_ips = socket.gethostbyname_ex(hostname)[2]
+    for ip in local_ips:
+        if not ip.startswith("127."):
+            ip_addresses.append(ip)
+    return ip_addresses
+
+def discover_servers(broadcast_port, interface_ip):
+    """
+    Discover servers on the network
+    """
+
+    def send_broadcast(udp_socket, interface_ip):
+        """
+        Helper Method that Send a broadcast message to the specified network interface.
+        """
+        udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        udp_socket.settimeout(8)
+        
+        # Bind to the specified IP address
+        udp_socket.bind((interface_ip, 0))
+        
+        message = "DISCOVER_SERVER".encode('utf-8')
+        
+        try:
+            udp_socket.sendto(message, ('<broadcast>', broadcast_port))
+            print(f"Broadcast message sent to port {broadcast_port} through interface {interface_ip}")
+        except Exception as e:
+            print(f"Failed to send broadcast message: {e}")
+
+    if interface_ip == "0.0.0.0":
+        local_ips = get_local_ip_addresses()
+        for ip in local_ips:
+            udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            send_broadcast(udp_socket, ip)
+    else:
+        udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        send_broadcast(udp_socket, interface_ip)
+
+    print("Discovering servers on the network...")
+    servers = []
+    try:
+        while True:
+            print("Waiting for responses...")
+            data, addr = udp_socket.recvfrom(1024)
+            print(f"Received response from {addr}")
+            server_info = json.loads(data.decode('utf-8'))
+            servers.append((addr[0], server_info['port']))
+    except socket.timeout:
+        print("Server discovery completed")
+    except Exception as e:
+        print(f"Error receiving response: {e}")
+    
+    return servers
+
 # Load configuration from ClientConfig.json
 try:
     with open('ClientConfig.json', 'r') as config_file:
@@ -50,19 +110,33 @@ except FileNotFoundError as e:
     input("Press enter to quit")
     sys.exit(1)
 
-interface = config['network_interface']
+interface_ip = config['network_interface']
 error_simulation_config = config.get('error_simulation', {})
 error_simulation_enabled = error_simulation_config.get('enabled', False)
 error_probability = error_simulation_config.get('probability', 0.0)
+broadcast_port = config.get('broadcast_port', 37020)
 
-# Get server address and port from user input
-Server = input("Server: ")
-port = int(input("Port: "))
+# Discover servers
+servers = discover_servers(broadcast_port, interface_ip)
+if servers:
+    print("Discovered servers:")
+    for i, (ip, port) in enumerate(servers):
+        print(f"{i + 1}. {ip}:{port}")
+    choice = input("Select a server by number or press Enter to input manually: ")
+    if choice.isdigit() and 1 <= int(choice) <= len(servers):
+        Server, port = servers[int(choice) - 1]
+    else:
+        Server = input("Server: ")
+        port = int(input("Port: "))
+else:
+    print("No servers discovered.")
+    Server = input("Server: ")
+    port = int(input("Port: "))
 
 # Attempt to connect to the server
 try:
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.bind((interface, 0))  # Bind to the specified network interface
+    sock.bind((interface_ip, 0))  # Bind to the specified network interface
     sock.connect((Server, port))
     print("Successfully connected to server")
 except:
