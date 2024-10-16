@@ -6,29 +6,23 @@ import struct
 import random
 import sys
 import signal
-from Checksum import calculate_checksum
+from MiscHelperClasses import ConfigLoader,Logger,SignalHandler
+from SocketHelperClasses import Checksum
 
 class Client:
-    def __init__(self, config: dict, discoverable: bool = True):
-        self.config = config
-        self.interface_ip = config['network_interface']
-        self.error_simulation_config = config.get('error_simulation', {})
+    def __init__(self, config_file: str, discoverable: bool = True):
+        self.config_loader = ConfigLoader(config_file)
+        self.config = self.config_loader.config  # Load config using ConfigLoader
+        self.interface_ip = self.config['network_interface']
+        self.error_simulation_config = self.config.get('error_simulation', {})
         self.error_simulation_enabled = self.error_simulation_config.get('enabled', False)
         self.error_probability = self.error_simulation_config.get('probability', 0.0)
-        self.broadcast_port = config.get('broadcast_port', 37020)
+        self.broadcast_port = self.config.get('broadcast_port', 37020)
         self.sock = None
         self.discoverable = discoverable
+        self.signal_handler = SignalHandler(client=self)
+        self.signal_handler.setup_signal_handling()
 
-    @staticmethod
-    def load_config(file_path: str) -> dict:
-        try:
-            with open(file_path, 'r') as config_file:
-                return json.load(config_file)
-        except FileNotFoundError as e:
-            print(f"Error: {e}")
-            print("Please make sure that the ClientConfig.json file exists")
-            input("Press enter to quit")
-            sys.exit(1)
 
     def introduce_error(self, data, probability):
         if random.random() < probability:
@@ -47,11 +41,6 @@ class Client:
                 sys.exit(0)
                 break
 
-    def signal_handler(self, sig, frame):
-        print("\nExiting...")
-        if self.sock:
-            self.sock.close()
-        sys.exit(0)
 
     def get_local_ip_addresses(self):
         ip_addresses = []
@@ -146,7 +135,7 @@ class Client:
                 continue
 
             message_bytes = message.encode('utf-8')
-            checksum = calculate_checksum(message_bytes)
+            checksum = Checksum.calculate(message_bytes)
             message_with_checksum = message_bytes + struct.pack('!H', checksum)
 
             if self.error_simulation_enabled:
@@ -155,6 +144,7 @@ class Client:
             self.sock.sendall(message_with_checksum)
 
 if __name__ == "__main__":
-    config = Client.load_config('ClientConfig.json')
-    client = Client(config)
+    logger = Logger.setup_logging()
+    config_file = 'ClientConfig.json'
+    client = Client(config_file)
     client.start_client()

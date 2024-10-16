@@ -1,7 +1,9 @@
+#peer.py
 import threading
 import signal
 import json
 import sys
+from MiscHelperClasses import Logger
 from Server import Server  # Assuming you have refactored the server into Server.py
 from Client import Client  # Assuming you have refactored the client into Client.py
 
@@ -29,9 +31,6 @@ class Peer:
         """
         Start both the server and client.
         """
-        # Register the signal handler for clean shutdown
-        signal.signal(signal.SIGINT, self.signal_handler)
-
         # Start the server in a separate thread
         server_thread = threading.Thread(target=self.server.start_server)
         server_thread.start()
@@ -52,6 +51,7 @@ class Peer:
         client_thread.join()
 
 if __name__ == "__main__":
+    logger = Logger.setup_logging()
     # Load server and client configurations from JSON files
     try:
         with open('ServerConfig.json', 'r') as server_config_file:
@@ -64,4 +64,8 @@ if __name__ == "__main__":
 
     # Create and start the peer application
     peer = Peer(server_config, client_config, server_discoverable=False, client_discoverable=True)  # Set server_discoverable and client_discoverable as needed
+
+    # Register the signal handler for clean shutdown in the main thread
+    signal.signal(signal.SIGINT, peer.signal_handler)
+
     peer.start()

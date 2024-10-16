@@ -4,38 +4,25 @@ import struct
 import json
 import sys
 import signal
-from Checksum import validate_checksum
 import logging
+from MiscHelperClasses import ConfigLoader,Logger,SignalHandler
+from SocketHelperClasses import Checksum
 
-
-
-def setup_logging():
-    logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
-
-    file_handler = logging.FileHandler('Server.log')
-    console_handler = logging.StreamHandler()
-
-    formatter = logging.Formatter('%(asctime)s - %(message)s')
-    file_handler.setFormatter(formatter)
-    console_handler.setFormatter(formatter)
-
-    logger.addHandler(file_handler)
-    logger.addHandler(console_handler)
-    return logger
-
-logger = setup_logging()
 
 class Server:
-    def __init__(self, config: dict):
+    def __init__(self, config_file: dict):
         self.shutdown_flag = threading.Event()
         self.server_socket = None
-        self.config = config
+        self.config_loader = ConfigLoader(config_file)
+        self.config = self.config_loader.config  # Load config using ConfigLoader
         self.buffer_size = config.get('buffer_size', 1024)
         self.max_connections = config.get('max_connections', 5)
         self.default_ip = config.get('default_ip', "127.0.0.1")
         self.external_ip_check = config.get('external_ip_check', "8.8.8.8")
         self.external_ip_port = config.get('external_ip_port', 80)
+        self.signal_handler = SignalHandler(server=self)
+        self.signal_handler.setup_signal_handling()
+
 
     @staticmethod
     def validate_config(config: dict) -> None:
@@ -78,7 +65,7 @@ class Server:
                     break
                 received_checksum = struct.unpack('!H', message[-2:])[0]
                 message = message[:-2]
-                if validate_checksum(message, received_checksum):
+                if Checksum.validate(message, received_checksum):
                     client_socket.sendall(b"Message received correctly")
                     logging.info(f"Received message: {message.decode('utf-8')}")
                 else:
@@ -169,15 +156,16 @@ class Server:
         logging.info("Server has been shut down gracefully.")
 
 if __name__ == "__main__":
+
+    logger = Logger.setup_logging()
     config = Server.load_config('ServerConfig.json')
 
     server = Server(config)
-    signal.signal(signal.SIGINT, server.signal_handler)
-    signal.signal(signal.SIGTERM, server.signal_handler)
 
     broadcast_thread = threading.Thread(target=server.broadcast_listener)
     broadcast_thread.start()
 
     server.start_server()
     broadcast_thread.join()
+
     logging.info("Server has been shut down gracefully.")
