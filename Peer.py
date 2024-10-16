@@ -6,10 +6,13 @@ from Server import Server  # Assuming you have refactored the server into Server
 from Client import Client  # Assuming you have refactored the client into Client.py
 
 class Peer:
-    def __init__(self, server_config: dict, client_config: dict):
+    def __init__(self, server_config: dict, client_config: dict, server_discoverable: bool = False, client_discoverable: bool = True):
+        if server_discoverable and client_discoverable:
+            raise ValueError("Both server_discoverable and client_discoverable cannot be True at the same time.")
+        
         self.server = Server(server_config)
-        self.client = Client(client_config)
-        self.discoverable = False
+        self.client = Client(client_config, discoverable=client_discoverable)
+        self.server_discoverable = server_discoverable
         self.shutdown_flag = threading.Event()
 
     def signal_handler(self, sig, frame):
@@ -34,7 +37,7 @@ class Peer:
         server_thread.start()
 
         # Start the broadcast listener in a separate thread
-        if self.discoverable:
+        if self.server_discoverable:
             broadcast_listener_thread = threading.Thread(target=self.server.broadcast_listener)
             broadcast_listener_thread.start()
 
@@ -44,7 +47,7 @@ class Peer:
 
         # Join threads to wait for graceful shutdown
         server_thread.join()
-        if self.discoverable:
+        if self.server_discoverable:
             broadcast_listener_thread.join()
         client_thread.join()
 
@@ -60,5 +63,5 @@ if __name__ == "__main__":
         sys.exit(1)
 
     # Create and start the peer application
-    peer = Peer(server_config, client_config)
+    peer = Peer(server_config, client_config, server_discoverable=True, client_discoverable=False)  # Set server_discoverable and client_discoverable as needed
     peer.start()

@@ -9,7 +9,7 @@ import signal
 from Checksum import calculate_checksum
 
 class Client:
-    def __init__(self, config: dict):
+    def __init__(self, config: dict, discoverable: bool = True):
         self.config = config
         self.interface_ip = config['network_interface']
         self.error_simulation_config = config.get('error_simulation', {})
@@ -17,6 +17,7 @@ class Client:
         self.error_probability = self.error_simulation_config.get('probability', 0.0)
         self.broadcast_port = config.get('broadcast_port', 37020)
         self.sock = None
+        self.discoverable = discoverable
 
     @staticmethod
     def load_config(file_path: str) -> dict:
@@ -99,19 +100,23 @@ class Client:
         return servers
 
     def start_client(self):
-        servers = self.discover_servers()
-        if servers:
-            print("Discovered servers:")
-            for i, (ip, port) in enumerate(servers):
-                print(f"{i + 1}. {ip}:{port}")
-            choice = input("Select a server by number or press Enter to input manually: ")
-            if choice.isdigit() and 1 <= int(choice) <= len(servers):
-                Server, port = servers[int(choice) - 1]
+        if self.discoverable:
+            servers = self.discover_servers()
+            if servers:
+                print("Discovered servers:")
+                for i, (ip, port) in enumerate(servers):
+                    print(f"{i + 1}. {ip}:{port}")
+                choice = input("Select a server by number or press Enter to input manually: ")
+                if choice.isdigit() and 1 <= int(choice) <= len(servers):
+                    Server, port = servers[int(choice) - 1]
+                else:
+                    Server = input("Server: ")
+                    port = int(input("Port: "))
             else:
+                print("No servers discovered.")
                 Server = input("Server: ")
                 port = int(input("Port: "))
         else:
-            print("No servers discovered.")
             Server = input("Server: ")
             port = int(input("Port: "))
 
