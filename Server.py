@@ -25,27 +25,6 @@ class Server:
 
 
     @staticmethod
-    def validate_config(config: dict) -> None:
-        required_keys = ['network_interface', 'port', 'broadcast_port']
-        for key in required_keys:
-            if key not in config:
-                raise ValueError(f"Missing required config key: {key}")
-
-    @staticmethod
-    def load_config(file_path: str) -> dict:
-        try:
-            with open(file_path, 'r') as config_file:
-                config = json.load(config_file)
-            Server.validate_config(config)
-            return config
-        except FileNotFoundError:
-            logging.error(f"Configuration file not found: {file_path}")
-            raise RuntimeError("Failed to load configuration: File not found")
-        except ValueError as e:
-            logging.error(f"Invalid configuration format: {e}")
-            raise RuntimeError("Failed to load configuration: Invalid format")
-
-    @staticmethod
     def get_actual_ip(default_ip: str, external_ip_check: str, external_ip_port: int) -> str:
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as temp_socket:
             try:
