@@ -62,7 +62,7 @@ def discover_servers(broadcast_port, interface_ip):
         Helper Method that Send a broadcast message to the specified network interface.
         """
         udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-        udp_socket.settimeout(8)
+        udp_socket.settimeout(2)
         
         # Bind to the specified IP address
         udp_socket.bind((interface_ip, 0))
