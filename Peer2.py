@@ -55,11 +55,14 @@ class P2PNode:
             try:
                 data = self.sock.recv(1024)
                 if data:
-                    print(f"Received: {data.decode('utf-8')}")
+                    try:
+                        print(f"Received: {data.decode('utf-8')}")
+                    except UnicodeDecodeError as e:
+                        print(f"Failed to decode received data: {e}")
                 else:
                     break
-            except:
-                print("You have been disconnected from the server")
+            except Exception as e:
+                print(f"You have been disconnected from the server. Exception: {e}")
                 break
 
     def send(self):
