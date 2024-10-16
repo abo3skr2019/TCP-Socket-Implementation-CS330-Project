@@ -6,7 +6,7 @@ import random
 import sys
 import signal
 import logging
-from MiscHelperClasses import ConfigLoader, Logger, SignalHandler
+from MiscHelperClasses import ConfigLoader, Logger
 from SocketHelperClasses import Checksum
 
 class P2PNode:
@@ -27,8 +27,20 @@ class P2PNode:
         self.error_probability = self.error_simulation_config.get('probability', 0.0)
         self.sock = None
         self.discoverable = discoverable
-        self.signal_handler = SignalHandler(node=self)
-        self.signal_handler.setup_signal_handling()
+        self.setup_signal_handling()
+
+    def setup_signal_handling(self):
+        signal.signal(signal.SIGINT, self.handle_signal)
+        signal.signal(signal.SIGTERM, self.handle_signal)
+
+    def handle_signal(self, signum, frame):
+        print("Signal received, shutting down...")
+        self.shutdown_flag.set()
+        if self.sock:
+            self.sock.close()
+        if self.server_socket:
+            self.server_socket.close()
+        sys.exit(0)
 
     def introduce_error(self, data, probability):
         if random.random() < probability:
@@ -123,8 +135,6 @@ class P2PNode:
             print("Peer is down, please try later.")
             input("Press enter to quit")
             sys.exit(0)
-
-        signal.signal(signal.SIGINT, self.signal_handler.handle_signal)
 
         receive_thread = threading.Thread(target=self.receive)
         receive_thread.start()

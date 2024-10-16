@@ -1,0 +1,9 @@
+{
+    "network_interface": "0.0.0.0",
+    "port": 12345,
+    "broadcast_port": 5000,
+    "error_simulation": {
+        "enabled": false,
+        "probability": 0.3
+    }
+}
