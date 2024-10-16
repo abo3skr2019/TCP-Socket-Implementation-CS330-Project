@@ -6,7 +6,7 @@ import struct
 import random
 import sys
 import signal
-from MiscHelperClasses import ConfigLoader,Logger,SignalHandler
+from MiscHelperClasses import ConfigLoader, Logger, SignalHandler
 from SocketHelperClasses import Checksum
 
 class Client:
@@ -22,7 +22,6 @@ class Client:
         self.discoverable = discoverable
         self.signal_handler = SignalHandler(client=self)
         self.signal_handler.setup_signal_handling()
-
 
     def introduce_error(self, data, probability):
         if random.random() < probability:
@@ -40,7 +39,6 @@ class Client:
                 print("You have been disconnected from the server")
                 sys.exit(0)
                 break
-
 
     def get_local_ip_addresses(self):
         ip_addresses = []
@@ -119,7 +117,7 @@ class Client:
             input("Press enter to quit")
             sys.exit(0)
 
-        signal.signal(signal.SIGINT, self.signal_handler)
+        signal.signal(signal.SIGINT, self.signal_handler.handle_signal)
 
         receive_thread = threading.Thread(target=self.receive)
         receive_thread.start()
