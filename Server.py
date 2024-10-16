@@ -15,11 +15,11 @@ class Server:
         self.server_socket = None
         self.config_loader = ConfigLoader(config_file)
         self.config = self.config_loader.config  # Load config using ConfigLoader
-        self.buffer_size = config.get('buffer_size', 1024)
-        self.max_connections = config.get('max_connections', 5)
-        self.default_ip = config.get('default_ip', "127.0.0.1")
-        self.external_ip_check = config.get('external_ip_check', "8.8.8.8")
-        self.external_ip_port = config.get('external_ip_port', 80)
+        self.buffer_size = self.config.get('buffer_size', 1024)
+        self.max_connections = self.config.get('max_connections', 5)
+        self.default_ip = self.config.get('default_ip', "127.0.0.1")
+        self.external_ip_check = self.config.get('external_ip_check', "8.8.8.8")
+        self.external_ip_port = self.config.get('external_ip_port', 80)
         self.signal_handler = SignalHandler(server=self)
         self.signal_handler.setup_signal_handling()
 
@@ -145,22 +145,13 @@ class Server:
                     break
                 logging.error(f"Socket error: {e}")
 
-    def signal_handler(self, sig: int, frame: any) -> None:
-        logging.info(f"Signal {sig} caught, shutting down the server...")
-        self.shutdown_flag.set()
-        if self.server_socket:
-            self.server_socket.close()
-        for thread in threading.enumerate():
-            if thread is not threading.current_thread():
-                thread.join()
-        logging.info("Server has been shut down gracefully.")
 
 if __name__ == "__main__":
 
     logger = Logger.setup_logging()
-    config = Server.load_config('ServerConfig.json')
+    config_file ='ServerConfig.json'
 
-    server = Server(config)
+    server = Server(config_file)
 
     broadcast_thread = threading.Thread(target=server.broadcast_listener)
     broadcast_thread.start()
@@ -168,4 +159,3 @@ if __name__ == "__main__":
     server.start_server()
     broadcast_thread.join()
 
-    logging.info("Server has been shut down gracefully.")
