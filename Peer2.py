@@ -180,6 +180,16 @@ class P2PNode:
         return actual_ip
 
     def handle_client(self, client_socket: socket.socket) -> None:
+        receive_thread = threading.Thread(target=self.receive_from_client, args=(client_socket,))
+        receive_thread.start()
+
+        send_thread = threading.Thread(target=self.send_to_client, args=(client_socket,))
+        send_thread.start()
+
+        receive_thread.join()
+        send_thread.join()
+
+    def receive_from_client(self, client_socket: socket.socket) -> None:
         while not self.shutdown_flag.is_set():
             try:
                 message = client_socket.recv(self.buffer_size)
@@ -188,10 +198,10 @@ class P2PNode:
                 received_checksum = struct.unpack('!H', message[-2:])[0]
                 message = message[:-2]
                 if Checksum.validate(message, received_checksum):
-                    client_socket.sendall(b"Message received correctly")
+                    print(f"Received from client: {message.decode('utf-8')}")
                     logging.info(f"Received message: {message.decode('utf-8')}")
                 else:
-                    client_socket.sendall(b"Error: The Received Message is not correct")
+                    print("Error: The Received Message is not correct")
             except socket.error as e:
                 logging.error(f"Socket error: {e}")
                 break
@@ -202,7 +212,25 @@ class P2PNode:
                 logging.error(f"Unexpected error: {e}")
                 break
 
-        client_socket.close()
+    def send_to_client(self, client_socket: socket.socket) -> None:
+        while not self.shutdown_flag.is_set():
+            message = input()
+            if message.lower() == "quit":
+                print("Exiting...")
+                client_socket.close()
+                break
+            if not message:
+                print("Error: The entered message is not valid")
+                continue
+
+            message_bytes = message.encode('utf-8')
+            checksum = Checksum.calculate(message_bytes)
+            message_with_checksum = message_bytes + struct.pack('!H', checksum)
+
+            if self.error_simulation_enabled:
+                message_with_checksum = self.introduce_error(message_with_checksum, self.error_probability)
+
+            client_socket.sendall(message_with_checksum)
 
     @staticmethod
     def setup_socket(socket_type: int, options: list = None, bind_address: tuple = None) -> socket.socket:
