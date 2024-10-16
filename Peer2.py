@@ -50,14 +50,36 @@ class P2PNode:
         return bytes(data)
 
     def receive(self):
-        while True:
+        while not self.shutdown_flag.is_set():
             try:
                 data = self.sock.recv(1024)
-                print(data.decode("utf-8"))
+                if data:
+                    print(f"Received: {data.decode('utf-8')}")
+                else:
+                    break
             except:
                 print("You have been disconnected from the server")
-                sys.exit(0)
                 break
+
+    def send(self):
+        while not self.shutdown_flag.is_set():
+            message = input()
+            if message.lower() == "quit":
+                print("Exiting...")
+                self.sock.close()
+                break
+            if not message:
+                print("Error: The entered message is not valid")
+                continue
+
+            message_bytes = message.encode('utf-8')
+            checksum = Checksum.calculate(message_bytes)
+            message_with_checksum = message_bytes + struct.pack('!H', checksum)
+
+            if self.error_simulation_enabled:
+                message_with_checksum = self.introduce_error(message_with_checksum, self.error_probability)
+
+            self.sock.sendall(message_with_checksum)
 
     def get_local_ip_addresses(self):
         ip_addresses = []
@@ -139,24 +161,11 @@ class P2PNode:
         receive_thread = threading.Thread(target=self.receive)
         receive_thread.start()
 
-        while True:
-            message = input()
-            if message.lower() == "quit":
-                print("Exiting...")
-                self.sock.close()
-                break
-            if not message:
-                print("Error: The entered message is not valid")
-                continue
+        send_thread = threading.Thread(target=self.send)
+        send_thread.start()
 
-            message_bytes = message.encode('utf-8')
-            checksum = Checksum.calculate(message_bytes)
-            message_with_checksum = message_bytes + struct.pack('!H', checksum)
-
-            if self.error_simulation_enabled:
-                message_with_checksum = self.introduce_error(message_with_checksum, self.error_probability)
-
-            self.sock.sendall(message_with_checksum)
+        receive_thread.join()
+        send_thread.join()
 
     @staticmethod
     def get_actual_ip(default_ip: str, external_ip_check: str, external_ip_port: int) -> str:
