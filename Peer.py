@@ -63,5 +63,5 @@ if __name__ == "__main__":
         sys.exit(1)
 
     # Create and start the peer application
-    peer = Peer(server_config, client_config, server_discoverable=True, client_discoverable=False)  # Set server_discoverable and client_discoverable as needed
+    peer = Peer(server_config, client_config, server_discoverable=False, client_discoverable=True)  # Set server_discoverable and client_discoverable as needed
     peer.start()
