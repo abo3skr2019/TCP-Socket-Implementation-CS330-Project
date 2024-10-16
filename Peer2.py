@@ -12,6 +12,7 @@ from SocketHelperClasses import Checksum
 class P2PNode:
     def __init__(self, config_file: str, discoverable: bool = True):
         self.shutdown_flag = threading.Event()
+        self.connection_established = threading.Event()
         self.server_socket = None
         self.config_loader = ConfigLoader(config_file)
         self.config = self.config_loader.config  # Load config using ConfigLoader
@@ -148,11 +149,16 @@ class P2PNode:
             peer = input("Peer: ")
             port = int(input("Port: "))
 
+        if self.connection_established.is_set():
+            print("Connection request received, cancelling peer input sequence.")
+            return
+
         try:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.sock.bind((self.interface_ip, 0))
             self.sock.connect((peer, port))
             print("Successfully connected to peer")
+            self.connection_established.set()
         except:
             print("Peer is down, please try later.")
             input("Press enter to quit")
@@ -180,57 +186,17 @@ class P2PNode:
         return actual_ip
 
     def handle_client(self, client_socket: socket.socket) -> None:
-        receive_thread = threading.Thread(target=self.receive_from_client, args=(client_socket,))
+        self.connection_established.set()
+        self.sock = client_socket
+
+        receive_thread = threading.Thread(target=self.receive)
         receive_thread.start()
 
-        send_thread = threading.Thread(target=self.send_to_client, args=(client_socket,))
+        send_thread = threading.Thread(target=self.send)
         send_thread.start()
 
         receive_thread.join()
         send_thread.join()
-
-    def receive_from_client(self, client_socket: socket.socket) -> None:
-        while not self.shutdown_flag.is_set():
-            try:
-                message = client_socket.recv(self.buffer_size)
-                if not message:
-                    break
-                received_checksum = struct.unpack('!H', message[-2:])[0]
-                message = message[:-2]
-                if Checksum.validate(message, received_checksum):
-                    print(f"Received from client: {message.decode('utf-8')}")
-                    logging.info(f"Received message: {message.decode('utf-8')}")
-                else:
-                    print("Error: The Received Message is not correct")
-            except socket.error as e:
-                logging.error(f"Socket error: {e}")
-                break
-            except struct.error as e:
-                logging.error(f"Struct error: {e}")
-                break
-            except Exception as e:
-                logging.error(f"Unexpected error: {e}")
-                break
-
-    def send_to_client(self, client_socket: socket.socket) -> None:
-        while not self.shutdown_flag.is_set():
-            message = input()
-            if message.lower() == "quit":
-                print("Exiting...")
-                client_socket.close()
-                break
-            if not message:
-                print("Error: The entered message is not valid")
-                continue
-
-            message_bytes = message.encode('utf-8')
-            checksum = Checksum.calculate(message_bytes)
-            message_with_checksum = message_bytes + struct.pack('!H', checksum)
-
-            if self.error_simulation_enabled:
-                message_with_checksum = self.introduce_error(message_with_checksum, self.error_probability)
-
-            client_socket.sendall(message_with_checksum)
 
     @staticmethod
     def setup_socket(socket_type: int, options: list = None, bind_address: tuple = None) -> socket.socket:
@@ -253,8 +219,7 @@ class P2PNode:
             try:
                 client_socket, addr = self.server_socket.accept()
                 logging.info(f"Accepted connection from {addr}")
-                client_handler = threading.Thread(target=self.handle_client, args=(client_socket,))
-                client_handler.start()
+                self.handle_client(client_socket)
             except socket.timeout:
                 continue
             except socket.error as e:
