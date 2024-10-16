@@ -2,10 +2,11 @@
 import threading
 import json
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from MiscHelperClasses import Logger
-from Server import Server  # Assuming you have refactored the server into Server.py
-from Client import Client  # Assuming you have refactored the client into Client.py
-from MiscHelperClasses import SignalHandler  # Import the SignalHandler class
+from Server import Server
+from Client import Client
+from MiscHelperClasses import SignalHandler
 
 class Peer:
     def __init__(self, server_config: dict, client_config: dict, server_discoverable: bool = False, client_discoverable: bool = True):
@@ -27,31 +28,23 @@ class Peer:
         # Register the signal handler for clean shutdown
         self.signal_handler.setup_signal_handling()
 
-        # Start the server in a separate thread
-        server_thread = threading.Thread(target=self.server.start_server)
-        server_thread.start()
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            # Start the server in a separate thread
+            executor.submit(self.server.start_server)
 
-        # Start the broadcast listener in a separate thread
-        if self.server_discoverable:
-            broadcast_listener_thread = threading.Thread(target=self.server.broadcast_listener)
-            broadcast_listener_thread.start()
+            # Start the broadcast listener in a separate thread if discoverable
+            if self.server_discoverable:
+                executor.submit(self.server.broadcast_listener)
 
-        # Start the client in the main thread or another thread if preferred
-        client_thread = threading.Thread(target=self.client.start_client)
-        client_thread.start()
-
-        # Join threads to wait for graceful shutdown
-        server_thread.join()
-        if self.server_discoverable:
-            broadcast_listener_thread.join()
-        client_thread.join()
+            # Start the client in a separate thread
+            executor.submit(self.client.start_client)
 
 if __name__ == "__main__":
     logger = Logger.setup_logging()
-    server_config_file ='ServerConfig.json'
+    server_config_file = 'ServerConfig.json'
     client_config_file = 'ClientConfig.json'
 
     # Create and start the peer application
-    peer = Peer(server_config_file, client_config_file, server_discoverable=False, client_discoverable=True)  # Set server_discoverable and client_discoverable as needed
+    peer = Peer(server_config_file, client_config_file, server_discoverable=False, client_discoverable=True)
 
     peer.start()
