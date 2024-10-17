@@ -5,7 +5,8 @@ import json
 import sys
 import signal
 import logging
-from MiscHelperClasses import ConfigLoader,Logger,SignalHandler
+from queue import Queue, Empty
+from MiscHelperClasses import ConfigLoader, Logger, SignalHandler
 from SocketHelperClasses import Checksum
 
 
@@ -23,7 +24,7 @@ class Server:
         self.signal_handler = SignalHandler(server=self)
         self.signal_handler.setup_signal_handling()
         self.client_socket = None
-
+        self.message_queue = Queue()
 
     @staticmethod
     def get_actual_ip(default_ip: str, external_ip_check: str, external_ip_port: int) -> str:
@@ -46,13 +47,13 @@ class Server:
                     break
                 received_checksum = struct.unpack('!H', message[-2:])[0]
                 message = message[:-2]
-                if Checksum.validate(message, received_checksum):
-                    logging.info(f"Checksum.validate = {Checksum.validate(message, received_checksum)}")
-                    client_socket.sendall(b"ACK:Your Message has been received correctly")
-                    logging.info("Recieved Client Message correctly")
+                is_valid_checksum = Checksum.validate(message, received_checksum)
+                if is_valid_checksum:
+                    logging.info(f"Checksum.validate = {is_valid_checksum}")
+                    self.message_queue.put(b"ACK:Your Message has been received correctly")
+                    logging.info("Received Client Message correctly")
                     logging.info(f"Client: {message.decode('utf-8')}")
                 else:
-                    client_socket.sendall(b"Error: The Received Message is not correct")
                     logging.info("Error: The Received Message is not correct")
             except socket.error as e:
                 logging.error(f"Socket error: {e}")
@@ -68,19 +69,14 @@ class Server:
 
     def send_message_to_client(self):
         while not self.shutdown_flag.is_set() and self.client_socket:
-            message = input("Enter message to send to client: ")
-            if message.lower() == "quit":
-                break
-            if not message:
-                logging.error("Error: Entered Message is Empty. Messages Aren't Valid")
-            if self.client_socket:
-                try:
-                    message_bytes = message.encode('utf-8')
-                    checksum = Checksum.calculate(message_bytes)
-                    message_with_checksum = message_bytes + struct.pack('!H', checksum)
-                    self.client_socket.sendall(message_with_checksum)
-                except Exception as e:
-                    logging.error(f"Error sending message to client: {e}")
+            try:
+                message = self.message_queue.get(timeout=1)
+                if message:
+                    self.client_socket.sendall(message)
+            except Empty:
+                continue
+            except Exception as e:
+                logging.error(f"Error sending message to client: {e}")
 
     @staticmethod
     def setup_socket(socket_type: int, options: list = None, bind_address: tuple = None) -> socket.socket:
@@ -152,7 +148,7 @@ class Server:
 if __name__ == "__main__":
 
     logger = Logger.setup_logging()
-    config_file ='ServerConfig.json'
+    config_file = 'ServerConfig.json'
 
     server = Server(config_file)
 
@@ -161,4 +157,3 @@ if __name__ == "__main__":
 
     server.start_server()
     broadcast_thread.join()
-
