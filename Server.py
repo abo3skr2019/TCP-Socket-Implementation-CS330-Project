@@ -47,11 +47,12 @@ class Server:
                 received_checksum = struct.unpack('!H', message[-2:])[0]
                 message = message[:-2]
                 if Checksum.validate(message, received_checksum):
-                    client_socket.send(b"ACK:Your Message has been received correctly")
+                    logging.info(f"Checksum.validate = {Checksum.validate(message, received_checksum)}")
+                    client_socket.sendall(b"ACK:Your Message has been received correctly")
                     logging.info("Recieved Client Message correctly")
                     logging.info(f"Client: {message.decode('utf-8')}")
                 else:
-                    client_socket.send(b"Error: The Received Message is not correct")
+                    client_socket.sendall(b"Error: The Received Message is not correct")
             except socket.error as e:
                 logging.error(f"Socket error: {e}")
                 break
@@ -76,7 +77,7 @@ class Server:
                     message_bytes = message.encode('utf-8')
                     checksum = Checksum.calculate(message_bytes)
                     message_with_checksum = message_bytes + struct.pack('!H', checksum)
-                    self.client_socket.send(message_with_checksum)
+                    self.client_socket.sendall(message_with_checksum)
                 except Exception as e:
                     logging.error(f"Error sending message to client: {e}")
 
