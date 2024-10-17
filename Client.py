@@ -34,7 +34,10 @@ class Client:
         while True:
             try:
                 data = self.sock.recv(1024)
-                print(data.decode("utf-8"))
+                if not data:
+                    print("Server has disconnected.")
+                    break
+                print(f"Server: {data.decode('utf-8')}")
             except:
                 print("You have been disconnected from the server")
                 sys.exit(0)

@@ -22,6 +22,7 @@ class Server:
         self.external_ip_port = self.config.get('external_ip_port', 80)
         self.signal_handler = SignalHandler(server=self)
         self.signal_handler.setup_signal_handling()
+        self.client_socket = None
 
 
     @staticmethod
@@ -37,6 +38,7 @@ class Server:
         return actual_ip
 
     def handle_client(self, client_socket: socket.socket) -> None:
+        self.client_socket = client_socket
         while not self.shutdown_flag.is_set():
             try:
                 message = client_socket.recv(self.buffer_size)
@@ -60,6 +62,17 @@ class Server:
                 break
 
         client_socket.close()
+    def send_message_to_client(self):
+        while not self.shutdown_flag.is_set() and self.client_socket:
+            message = input("Enter message to send to client: ")
+            if message.lower() == "quit":
+                break
+            if self.client_socket:
+                try:
+                    self.client_socket.sendall(message.encode('utf-8'))
+                except Exception as e:
+                    logging.error(f"Error sending message to client: {e}")
+
 
     @staticmethod
     def setup_socket(socket_type: int, options: list = None, bind_address: tuple = None) -> socket.socket:
@@ -84,6 +97,9 @@ class Server:
                 logging.info(f"Accepted connection from {addr}")
                 client_handler = threading.Thread(target=self.handle_client, args=(client_socket,))
                 client_handler.start()
+                send_thread = threading.Thread(target=self.send_message_to_client)
+                send_thread.start()
+
             except socket.timeout:
                 continue
             except socket.error as e:
