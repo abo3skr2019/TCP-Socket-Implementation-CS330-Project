@@ -46,11 +46,11 @@ class Client:
 
                 # Validate the checksum
                 if Checksum.validate(message, received_checksum):
-                    self.sock.sendall(b"ACK:Your Message has been received correctly")
+                    self.sock.send(b"ACK:Your Message has been received correctly")
                     logging.info("received Server Message correctly")
                     logging.info(f"Server: {message.decode('utf-8')}")
                 else:
-                    self.sock.sendall(b"Error: The Received Message is not correct")
+                    self.sock.send(b"Error: The Received Message is not correct")
             except:
                 logging.error("You have been disconnected from the server")
                 sys.exit(0)
@@ -155,7 +155,7 @@ class Client:
             if self.error_simulation_enabled:
                 message_with_checksum = self.introduce_error(message_with_checksum, self.error_probability)
 
-            self.sock.sendall(message_with_checksum)
+            self.sock.send(message_with_checksum)
 
 if __name__ == "__main__":
     logger = Logger.setup_logging()
