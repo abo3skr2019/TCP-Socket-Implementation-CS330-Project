@@ -32,20 +32,28 @@ class Client:
         return bytes(data)
 
     def receive(self):
+        AcknowledgementUTF8 = 'ACK'.encode('utf-8')
+        ErrorAcknowledgementUTF8 = 'Error'.encode('utf-8')
+
         while True:
             try:
                 data = self.sock.recv(1024)
                 if not data:
                     logging.error("Server has disconnected.")
                     break
-
+                if data.startswith(AcknowledgementUTF8):
+                    logging.info(data.decode('utf-8'))
+                    continue
+                if data.startswith(ErrorAcknowledgementUTF8):
+                    logging.error(data.decode('utf-8'))
+                    continue
                 # Extract the message and checksum
                 received_checksum = struct.unpack('!H', data[-2:])[0]
                 message = data[:-2]
+                is_valid_checksum = Checksum.validate(message, received_checksum)
                 
-
                 # Validate the checksum
-                if Checksum.validate(message, received_checksum):
+                if is_valid_checksum:
                     self.sock.sendall(b"ACK:Your Message has been received correctly")
                     logging.info("received Server Message correctly")
                     logging.info(f"Server: {message.decode('utf-8')}")

@@ -40,11 +40,19 @@ class Server:
 
     def handle_client(self, client_socket: socket.socket) -> None:
         self.client_socket = client_socket
+        AcknowledgementUTF8 = 'ACK'.encode('utf-8')
+        ErrorAcknowledgementUTF8 = 'Error'.encode('utf-8')
         while not self.shutdown_flag.is_set():
             try:
                 message = client_socket.recv(self.buffer_size)
                 if not message:
                     break
+                if message.startswith(AcknowledgementUTF8):
+                    logging.info(f"Received ACK from client : {message.decode('utf-8')}")
+                    continue
+                if message.startswith(ErrorAcknowledgementUTF8):
+                    logging.error("Received Error from client")
+                    continue
                 received_checksum = struct.unpack('!H', message[-2:])[0]
                 message = message[:-2]
                 is_valid_checksum = Checksum.validate(message, received_checksum)
@@ -54,7 +62,7 @@ class Server:
                     logging.info("Received Client Message correctly")
                     logging.info(f"Client: {message.decode('utf-8')}")
                 else:
-                    logging.info("Error: The Received Message is not correct")
+                    logging.info("Enter is_valid_checksum else block")
             except socket.error as e:
                 logging.error(f"Socket error: {e}")
                 break
@@ -70,14 +78,27 @@ class Server:
     def send_message_to_client(self):
         while not self.shutdown_flag.is_set() and self.client_socket:
             try:
-                message = self.message_queue.get(timeout=1)
-                if message:
-                    self.client_socket.sendall(message)
-            except Empty:
-                continue
+                # Check for messages in the queue
+                try:
+                    message = self.message_queue.get(timeout=1)
+                    if message:
+                        self.client_socket.sendall(message)
+                except Empty:
+                    pass
+
+                # Allow user to input messages
+                user_message = input("Enter message to send to client: ")
+                if user_message.lower() == "quit":
+                    break
+                if not user_message:
+                    logging.error("Error: Entered Message is Empty. Messages Aren't Valid")
+                else:
+                    message_bytes = user_message.encode('utf-8')
+                    checksum = Checksum.calculate(message_bytes)
+                    message_with_checksum = message_bytes + struct.pack('!H', checksum)
+                    self.client_socket.sendall(message_with_checksum)
             except Exception as e:
                 logging.error(f"Error sending message to client: {e}")
-
     @staticmethod
     def setup_socket(socket_type: int, options: list = None, bind_address: tuple = None) -> socket.socket:
         set_socket = socket.socket(socket.AF_INET, socket_type)
