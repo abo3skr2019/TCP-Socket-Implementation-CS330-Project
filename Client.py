@@ -154,7 +154,7 @@ class Client:
                 self.sock.close()
                 break
             if not message:
-                logging.error("Error: Entered Message is Empty. Messages Aren't Valid")
+                logging.error("the entered message is not empty; an empty message in not valid")
                 continue
 
             message_bytes = message.encode('utf-8')

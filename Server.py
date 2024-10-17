@@ -92,7 +92,7 @@ class Server:
                 if user_message.lower() == "quit":
                     break
                 if not user_message:
-                    logging.error("Error: Entered Message is Empty. Messages Aren't Valid")
+                    logging.error("the entered message is not empty; an empty message in not valid")
                 else:
                     message_bytes = user_message.encode('utf-8')
                     checksum = Checksum.calculate(message_bytes)
