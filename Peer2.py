@@ -24,13 +24,15 @@ def handle_server_messages(server_socket):
             message, received_checksum = received_data[:-5], int(received_data[-5:])
             calculated_checksum = calculate_checksum(message)
             
-            # Check checksum
-            if calculated_checksum != received_checksum:
+            # Check checksum for actual messages only
+            if not message.startswith("ACK") and calculated_checksum != received_checksum:
                 print("Error: The Received Message is not correct.")
             else:
-                print(f"Server says: {message}")
-                confirmation_message = "Message received correctly"
-                server_socket.send(f"{confirmation_message}{calculate_checksum(confirmation_message):05}".encode())
+                if message.startswith("ACK"):
+                    print(f"Acknowledgment received: {message}")
+                else:
+                    print(f"Server says: {message}")
+
         except Exception as e:
             print("Error receiving message:", e)
             break
@@ -56,7 +58,7 @@ def start_client(ip, port):
             continue
 
         # Simulate error occurrence
-        error_probability = 0.0
+        error_probability = random.choice([0.3, 0.5, 0.8])
         message_with_error = simulate_error(message, error_probability)
 
         checksum = calculate_checksum(message_with_error)

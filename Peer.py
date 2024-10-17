@@ -18,13 +18,16 @@ def handle_client(client_socket):
         message, received_checksum = received_data[:-5], int(received_data[-5:])
         calculated_checksum = calculate_checksum(message)
         
-        # Check checksum
-        if calculated_checksum != received_checksum:
+        # Check checksum for actual messages only
+        if not message.startswith("ACK") and calculated_checksum != received_checksum:
             client_socket.send("Error: The Received Message is not correct.".encode())
         else:
-            print(f"Client says: {message}")
-            confirmation_message = "Message received correctly"
-            client_socket.send(f"{confirmation_message}{calculate_checksum(confirmation_message):05}".encode())
+            if message.startswith("ACK"):
+                print(f"Acknowledgment received: {message}")
+            else:
+                print(f"Client says: {message}")
+                acknowledgment = "ACK: Message received"
+                client_socket.send(f"{acknowledgment}{calculate_checksum(acknowledgment):05}".encode())
     
     client_socket.close()
 
@@ -37,8 +40,7 @@ def start_server(port):
     while True:
         client_socket, addr = server_socket.accept()
         print(f"Accepted connection from {addr}")
-        client_handler = threading.Thread(target=handle_client, args=(client_socket,))
-        client_handler.start()
+        threading.Thread(target=handle_client, args=(client_socket,)).start()
 
 def send_messages(server_socket):
     while True:
@@ -56,5 +58,7 @@ def send_messages(server_socket):
 
 if __name__ == "__main__":
     PORT = 12345  # Change this port as needed
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_socket.connect(('', PORT))
     threading.Thread(target=start_server, args=(PORT,)).start()
-    send_messages(socket.socket(socket.AF_INET, socket.SOCK_STREAM))
+    send_messages(server_socket)
