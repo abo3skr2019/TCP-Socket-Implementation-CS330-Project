@@ -53,6 +53,7 @@ class Server:
                     logging.info(f"Client: {message.decode('utf-8')}")
                 else:
                     client_socket.sendall(b"Error: The Received Message is not correct")
+                    logging.info("Error: The Received Message is not correct")
             except socket.error as e:
                 logging.error(f"Socket error: {e}")
                 break

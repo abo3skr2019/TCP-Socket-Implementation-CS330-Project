@@ -51,6 +51,7 @@ class Client:
                     logging.info(f"Server: {message.decode('utf-8')}")
                 else:
                     self.sock.sendall(b"Error: The Received Message is not correct")
+                    logging.error("Error: The Received Message is not correct")
             except:
                 logging.error("You have been disconnected from the server")
                 sys.exit(0)
