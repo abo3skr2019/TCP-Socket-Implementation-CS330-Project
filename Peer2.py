@@ -1,3 +1,4 @@
+# client.py
 import socket
 import threading
 import random
@@ -32,6 +33,10 @@ def handle_server_messages(server_socket):
                     print(f"Acknowledgment received: {message}")
                 else:
                     print(f"Server says: {message}")
+                    # Send acknowledgment back to the server
+                    ack_message = "ACK: Message received"
+                    ack_checksum = calculate_checksum(ack_message)
+                    server_socket.send(f"{ack_message}{ack_checksum:05}".encode())
 
         except Exception as e:
             print("Error receiving message:", e)
@@ -58,7 +63,7 @@ def start_client(ip, port):
             continue
 
         # Simulate error occurrence
-        error_probability = random.choice([0.3, 0.5, 0.8])
+        error_probability = 0.0
         message_with_error = simulate_error(message, error_probability)
 
         checksum = calculate_checksum(message_with_error)
