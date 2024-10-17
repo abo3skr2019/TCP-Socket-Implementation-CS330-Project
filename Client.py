@@ -9,8 +9,15 @@ from Checksum import calculate_checksum
 
 def introduce_error(data, probability):
     """
-    Introduce an error in the data based on the given probability.
-    This is used to simulate transmission errors.
+    Add a random error to the data based on the given probability.
+    This helps simulate transmission errors.
+    
+    Parameters:
+    data (bytes): The original data that might get corrupted.
+    probability (float): The chance of introducing an error.
+    
+    Returns:
+    bytes: The data, possibly with an error.
     """
     if random.random() < probability:
         error_index = random.randint(0, len(data) - 1)
@@ -20,8 +27,11 @@ def introduce_error(data, probability):
 
 def receive(sock):
     """
-    Continuously receive data from the socket.
+    Keep receiving data from the socket.
     This function runs in a separate thread.
+    
+    Parameters:
+    sock (socket.socket): The socket to receive data from.
     """
     while True:
         try:
@@ -33,8 +43,12 @@ def receive(sock):
             break
 
 def signal_handler(sig, frame):
-    """
-    Handle the SIGINT signal (Ctrl+C) to gracefully exit the program.
+   """
+    Handle the Ctrl+C signal to exit the program gracefully.
+    
+    Parameters:
+    sig (int): The signal number.
+    frame (frame object): The current stack frame.
     """
     print("\nExiting...")
     sock.close()
@@ -42,7 +56,10 @@ def signal_handler(sig, frame):
 
 def get_local_ip_addresses():
     """
-    Retrieve all local IP addresses associated with the network interfaces.
+    Get all local IP addresses associated with the network interfaces.
+    
+    Returns:
+    list: A list of local IP addresses.
     """
     ip_addresses = []
     hostname = socket.gethostname()
@@ -54,12 +71,23 @@ def get_local_ip_addresses():
 
 def discover_servers(broadcast_port, interface_ip):
     """
-    Discover servers on the network
+    Find servers on the network by sending a broadcast message.
+    
+    Parameters:
+    broadcast_port (int): The port to send the broadcast message to.
+    interface_ip (str): The IP address of the network interface to use.
+    
+    Returns:
+    list: A list of discovered servers as tuples of (IP address, port).
     """
 
     def send_broadcast(udp_socket, interface_ip):
         """
-        Helper Method that Send a broadcast message to the specified network interface.
+        Send a broadcast message using the specified network interface.
+        
+        Parameters:
+        udp_socket (socket.socket): The UDP socket for broadcasting.
+        interface_ip (str): The IP address of the network interface to use.
         """
         udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         udp_socket.settimeout(2)

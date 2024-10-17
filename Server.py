@@ -10,6 +10,18 @@ import logging
 
 
 def setup_logging():
+   """
+      Set up a socket with the given options and bind address.
+        
+        Parameters:
+        socket_type (int): The type of socket (e.g., socket.SOCK_STREAM).
+        options (list): List of socket options to set.
+        bind_address (tuple): Address to bind the socket to.
+        
+        Returns:
+      socket.socket: Configured socket.
+        """   
+
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
 
@@ -27,7 +39,21 @@ def setup_logging():
 logger = setup_logging()
 
 class Server:
+        """
+        Initialize the server with the given configuration.
+        
+        Parameters:
+        config (dict): Configuration dictionary.
+        """
+
     def __init__(self, config: dict):
+         """
+        Initialize the server with the given configuration.
+        
+        Parameters:
+        config (dict): Configuration dictionary.
+        """
+        
         self.shutdown_flag = threading.Event()
         self.server_socket = None
         self.config = config
@@ -39,6 +65,16 @@ class Server:
 
     @staticmethod
     def validate_config(config: dict) -> None:
+         """
+        Validate the server configuration.
+        
+        Parameters:
+        config (dict): Configuration dictionary.
+        
+        Raises:
+        ValueError: If a required configuration key is missing.
+        """
+
         required_keys = ['network_interface', 'port', 'broadcast_port']
         for key in required_keys:
             if key not in config:
@@ -46,6 +82,19 @@ class Server:
 
     @staticmethod
     def load_config(file_path: str) -> dict:
+         """
+        Load the server configuration from a file.
+        
+        Parameters:
+        file_path (str): Path to the configuration file.
+        
+        Returns:
+        dict: Loaded configuration dictionary.
+        
+        Raises:
+        RuntimeError: If the configuration file is not found or invalid.
+        """
+
         try:
             with open(file_path, 'r') as config_file:
                 config = json.load(config_file)
@@ -60,6 +109,19 @@ class Server:
 
     @staticmethod
     def get_actual_ip(default_ip: str, external_ip_check: str, external_ip_port: int) -> str:
+        
+         """
+        Get the actual IP address of the server.
+        
+        Parameters:
+        default_ip (str): Default IP address to use if external check fails.
+        external_ip_check (str): External IP check address.
+        external_ip_port (int): External IP check port.
+        
+        Returns:
+        str: Actual IP address.
+        """
+
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as temp_socket:
             try:
                 logging.info("Trying to connect to outside world")
@@ -71,6 +133,14 @@ class Server:
         return actual_ip
 
     def handle_client(self, client_socket: socket.socket) -> None:
+
+        """
+        Handle communication with a connected client.
+        
+        Parameters:
+        client_socket (socket.socket): The client socket.
+        """
+
         while not self.shutdown_flag.is_set():
             try:
                 message = client_socket.recv(self.buffer_size)
@@ -97,6 +167,19 @@ class Server:
 
     @staticmethod
     def setup_socket(socket_type: int, options: list = None, bind_address: tuple = None) -> socket.socket:
+
+        """
+        Set up a socket with the given options and bind address.
+        
+        Parameters:
+        socket_type (int): The type of socket (e.g., socket.SOCK_STREAM).
+        options (list): List of socket options to set.
+        bind_address (tuple): Address to bind the socket to.
+        
+        Returns:
+        socket.socket: Configured socket.
+        """
+
         set_socket = socket.socket(socket.AF_INET, socket_type)
         if options:
             for opt in options:
@@ -105,76 +188,100 @@ class Server:
             set_socket.bind(bind_address)
         return set_socket
 
-    def start_server(self) -> None:
-        network_interface = self.config['network_interface']
-        port = self.config['port']
-        self.server_socket = self.setup_socket(socket.SOCK_STREAM, bind_address=(network_interface, port))
-        self.server_socket.listen(self.max_connections)
-        self.server_socket.settimeout(1)
-        logging.info(f"Server started and listening on {network_interface}:{port}")
-        while not self.shutdown_flag.is_set():
-            try:
-                client_socket, addr = self.server_socket.accept()
-                logging.info(f"Accepted connection from {addr}")
-                client_handler = threading.Thread(target=self.handle_client, args=(client_socket,))
-                client_handler.start()
-            except socket.timeout:
-                continue
-            except socket.error as e:
-                if self.shutdown_flag.is_set():
-                    break
-                logging.error(f"Socket error: {e}")
-
-    def broadcast_listener(self) -> None:
-        logging.info("Broadcast listener started")
+def start_server(self) -> None:
+    """
+    Start the server and listen for incoming connections.
+    """
+    network_interface = self.config['network_interface']
+    port = self.config['port']
+    
+    self.server_socket = self.setup_socket(socket.SOCK_STREAM, bind_address=(network_interface, port))
+    self.server_socket.listen(self.max_connections)
+    self.server_socket.settimeout(1)
+    logging.info(f"Server started and listening on {network_interface}:{port}")
+    
+    while not self.shutdown_flag.is_set():
         try:
-            udp_options = [
-                (socket.SOL_SOCKET, socket.SO_REUSEADDR, 1),
-                (socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-            ]
-            udp_socket = self.setup_socket(socket.SOCK_DGRAM, udp_options, bind_address=("", self.config['broadcast_port']))
+            
+            client_socket, addr = self.server_socket.accept()
+            logging.info(f"Accepted connection from {addr}")
+            
+            client_handler = threading.Thread(target=self.handle_client, args=(client_socket,))
+            client_handler.start()
+        except socket.timeout:
+            continue
         except socket.error as e:
+            if self.shutdown_flag.is_set():
+                break
             logging.error(f"Socket error: {e}")
-        if self.config['network_interface'] == "0.0.0.0":
-            actual_ip = self.get_actual_ip(self.default_ip, self.external_ip_check, self.external_ip_port)
-        else:
-            actual_ip = self.config['network_interface']
 
-        while not self.shutdown_flag.is_set():
-            try:
-                udp_socket.settimeout(1)
-                message, addr = udp_socket.recvfrom(self.buffer_size)
-                logging.info(f"Received broadcast message: {message.decode('utf-8')} from {addr}")
-                if message.decode('utf-8') == "DISCOVER_SERVER":
-                    response = json.dumps({
-                        "network_interface": actual_ip,
-                        "port": self.config['port']
-                    }).encode('utf-8')
-                    udp_socket.sendto(response, addr)
-            except socket.timeout:
-                continue
-            except socket.error as e:
-                if self.shutdown_flag.is_set():
-                    break
-                logging.error(f"Socket error: {e}")
+def broadcast_listener(self) -> None:
+    """
+    Listen for broadcast messages and respond with server details.
+    """
+    logging.info("Broadcast listener started")
+    try:
+        udp_options = [
+            (socket.SOL_SOCKET, socket.SO_REUSEADDR, 1),
+            (socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        ]
+        
+        udp_socket = self.setup_socket(socket.SOCK_DGRAM, udp_options, bind_address=("", self.config['broadcast_port']))
+    except socket.error as e:
+        logging.error(f"Socket error: {e}")
+    
+    if self.config['network_interface'] == "0.0.0.0":
+        actual_ip = self.get_actual_ip(self.default_ip, self.external_ip_check, self.external_ip_port)
+    else:
+        actual_ip = self.config['network_interface']
 
-    def signal_handler(self, sig: int, frame: any) -> None:
-        logging.info(f"Signal {sig} caught, shutting down the server...")
-        self.shutdown_flag.set()
-        if self.server_socket:
-            self.server_socket.close()
-        for thread in threading.enumerate():
-            if thread is not threading.current_thread():
-                thread.join()
-        logging.info("Server has been shut down gracefully.")
+    while not self.shutdown_flag.is_set():
+        try:
+            udp_socket.settimeout(1)
+            
+            message, addr = udp_socket.recvfrom(self.buffer_size)
+            logging.info(f"Received broadcast message: {message.decode('utf-8')} from {addr}")
+            if message.decode('utf-8') == "DISCOVER_SERVER":
+                
+                response = json.dumps({
+                    "network_interface": actual_ip,
+                    "port": self.config['port']
+                }).encode('utf-8')
+                udp_socket.sendto(response, addr)
+        except socket.timeout:
+            continue
+        except socket.error as e:
+            if self.shutdown_flag.is_set():
+                break
+            logging.error(f"Socket error: {e}")
 
-if __name__ == "__main__":
+def signal_handler(self, sig: int, frame: any) -> None:
+    """
+    Handle shutdown signals to gracefully stop the server.
+    
+    Parameters:
+    sig (int): Signal number.
+    frame (any): Current stack frame.
+    """
+    logging.info(f"Signal {sig} caught, shutting down the server...")
+    self.shutdown_flag.set()
+    if self.server_socket:
+        self.server_socket.close()
+    for thread in threading.enumerate():
+        if thread is not threading.current_thread():
+            thread.join()
+    logging.info("Server has been shut down gracefully.")
+
+if _name_ == "_main_":
+
     config = Server.load_config('ServerConfig.json')
 
     server = Server(config)
+    
     signal.signal(signal.SIGINT, server.signal_handler)
     signal.signal(signal.SIGTERM, server.signal_handler)
 
+ 
     broadcast_thread = threading.Thread(target=server.broadcast_listener)
     broadcast_thread.start()
 
