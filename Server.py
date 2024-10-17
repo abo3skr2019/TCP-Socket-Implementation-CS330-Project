@@ -47,8 +47,9 @@ class Server:
                 received_checksum = struct.unpack('!H', message[-2:])[0]
                 message = message[:-2]
                 if Checksum.validate(message, received_checksum):
-                    client_socket.sendall(b"Message received correctly")
-                    logging.info(f"Received message: {message.decode('utf-8')}")
+                    client_socket.sendall(b"ACK:Your Message has been received correctly")
+                    print("Message received correctly")
+                    logging.info(f"Client: {message.decode('utf-8')}")
                 else:
                     client_socket.sendall(b"Error: The Received Message is not correct")
             except socket.error as e:
@@ -62,6 +63,7 @@ class Server:
                 break
 
         client_socket.close()
+
     def send_message_to_client(self):
         while not self.shutdown_flag.is_set() and self.client_socket:
             message = input("Enter message to send to client: ")
@@ -69,10 +71,12 @@ class Server:
                 break
             if self.client_socket:
                 try:
-                    self.client_socket.sendall(message.encode('utf-8'))
+                    message_bytes = message.encode('utf-8')
+                    checksum = Checksum.calculate(message_bytes)
+                    message_with_checksum = message_bytes + struct.pack('!H', checksum)
+                    self.client_socket.sendall(message_with_checksum)
                 except Exception as e:
                     logging.error(f"Error sending message to client: {e}")
-
 
     @staticmethod
     def setup_socket(socket_type: int, options: list = None, bind_address: tuple = None) -> socket.socket:
