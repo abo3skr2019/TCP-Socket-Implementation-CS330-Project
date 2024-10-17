@@ -5,6 +5,7 @@ import json
 import struct
 import random
 import sys
+import logging
 import signal
 from MiscHelperClasses import ConfigLoader, Logger, SignalHandler
 from SocketHelperClasses import Checksum
@@ -37,7 +38,19 @@ class Client:
                 if not data:
                     print("Server has disconnected.")
                     break
-                print(f"Server: {data.decode('utf-8')}")
+
+                # Extract the message and checksum
+                received_checksum = struct.unpack('!H', data[-2:])[0]
+                message = data[:-2]
+                
+
+                # Validate the checksum
+                if Checksum.validate(message, received_checksum):
+                    self.sock.sendall(b"ACK:Your Message has been received correctly")
+                    print("Message received correctly")
+                    logging.info(f"Server: {message.decode('utf-8')}")
+                else:
+                    self.sock.sendall(b"Error: The Received Message is not correct")
             except:
                 print("You have been disconnected from the server")
                 sys.exit(0)
