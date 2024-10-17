@@ -1,7 +1,13 @@
 def calculate_checksum(data):
-    """
+   """
     Calculate the checksum for the given data.
-    The checksum is used to verify data integrity.
+    This helps ensure the data hasn't been corrupted.
+
+    Parameters:
+    data (bytes): The data you want to check.
+
+    Returns:
+    int: The calculated checksum.
     """
     checksum = 0
     for i in range(0, len(data), 2):
@@ -14,7 +20,14 @@ def calculate_checksum(data):
     return ~checksum & 0xFFFF
 
 def validate_checksum(data, received_checksum):
-    """
-    Validate the checksum for the given data.
+   """
+    Check if the checksum for the given data is correct.
+
+    Parameters:
+    data (bytes): The data you want to validate.
+    received_checksum (int): The checksum that came with the data.
+
+    Returns:
+    bool: True if the checksum is correct, False otherwise.
     """
     return calculate_checksum(data) == received_checksum
