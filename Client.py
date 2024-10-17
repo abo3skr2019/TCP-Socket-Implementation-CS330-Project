@@ -36,7 +36,7 @@ class Client:
             try:
                 data = self.sock.recv(1024)
                 if not data:
-                    print("Server has disconnected.")
+                    logging.error("Server has disconnected.")
                     break
 
                 # Extract the message and checksum
@@ -47,12 +47,12 @@ class Client:
                 # Validate the checksum
                 if Checksum.validate(message, received_checksum):
                     self.sock.sendall(b"ACK:Your Message has been received correctly")
-                    print("Message received correctly")
+                    logging.info("received Server Message correctly")
                     logging.info(f"Server: {message.decode('utf-8')}")
                 else:
                     self.sock.sendall(b"Error: The Received Message is not correct")
             except:
-                print("You have been disconnected from the server")
+                logging.error("You have been disconnected from the server")
                 sys.exit(0)
                 break
 
@@ -73,9 +73,9 @@ class Client:
             message = "DISCOVER_SERVER".encode('utf-8')
             try:
                 udp_socket.sendto(message, ('<broadcast>', self.broadcast_port))
-                print(f"Broadcast message sent to port {self.broadcast_port} through interface {interface_ip}")
+                logging.info(f"Broadcast message sent to port {self.broadcast_port} through interface {interface_ip}")
             except Exception as e:
-                print(f"Failed to send broadcast message: {e}")
+                logging.error(f"Failed to send broadcast message: {e}")
 
         if self.interface_ip == "0.0.0.0":
             local_ips = self.get_local_ip_addresses()
@@ -86,19 +86,19 @@ class Client:
             udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             send_broadcast(udp_socket, self.interface_ip)
 
-        print("Discovering servers on the network...")
+        logging.info("Discovering servers on the network...")
         servers = []
         try:
             while True:
-                print("Waiting for responses...")
+                logging.info("Waiting for responses...")
                 data, addr = udp_socket.recvfrom(1024)
-                print(f"Received response from {addr}")
+                logging.info(f"Received response from {addr}")
                 server_info = json.loads(data.decode('utf-8'))
                 servers.append((addr[0], server_info['port']))
         except socket.timeout:
-            print("Server discovery completed")
+            logging.info("Server discovery completed")
         except Exception as e:
-            print(f"Error receiving response: {e}")
+            logging.error(f"Error receiving response: {e}")
 
         return servers
 
@@ -106,9 +106,9 @@ class Client:
         if self.discoverable:
             servers = self.discover_servers()
             if servers:
-                print("Discovered servers:")
+                logging.info("Discovered servers:")
                 for i, (ip, port) in enumerate(servers):
-                    print(f"{i + 1}. {ip}:{port}")
+                    logging.info(f"{i + 1}. {ip}:{port}")
                 choice = input("Select a server by number or press Enter to input manually: ")
                 if choice.isdigit() and 1 <= int(choice) <= len(servers):
                     Server, port = servers[int(choice) - 1]
@@ -116,7 +116,7 @@ class Client:
                     Server = input("Server: ")
                     port = int(input("Port: "))
             else:
-                print("No servers discovered.")
+                logging.info("No servers discovered.")
                 Server = input("Server: ")
                 port = int(input("Port: "))
         else:
@@ -127,9 +127,9 @@ class Client:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.sock.bind((self.interface_ip, 0))
             self.sock.connect((Server, port))
-            print("Successfully connected to server")
+            logging.info("Successfully connected to server")
         except:
-            print("Server is down, please try later.")
+            logging.error("Server is down, please try later.")
             input("Press enter to quit")
             sys.exit(0)
 
@@ -141,11 +141,11 @@ class Client:
         while True:
             message = input()
             if message.lower() == "quit":
-                print("Exiting...")
+                logging.info("Exiting...")
                 self.sock.close()
                 break
             if not message:
-                print("Error: The entered message is not valid")
+                logging.error("Error: Entered Message is Empty. Messages Aren't Valid")
                 continue
 
             message_bytes = message.encode('utf-8')
