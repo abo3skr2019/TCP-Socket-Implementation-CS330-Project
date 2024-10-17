@@ -6,6 +6,7 @@ class Checksum:
     @staticmethod
     def calculate(data):
         """
+
             Calculate the checksum for the given data.
             This helps ensure the data hasn't been corrupted.
 
@@ -28,6 +29,7 @@ class Checksum:
     @staticmethod
     def validate(data, received_checksum):
         """
+
             Check if the checksum for the given data is correct.
 
             Parameters:
