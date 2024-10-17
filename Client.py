@@ -163,7 +163,6 @@ class Client:
 
             if self.error_simulation_enabled:
                 message_with_checksum = self.introduce_error(message_with_checksum, self.error_probability)
-                logging.info(f"Message with Checksum after Error = {message_with_checksum}")
             logging.info(f"Sent Message {message_with_checksum}")
             self.sock.sendall(message_with_checksum)
 

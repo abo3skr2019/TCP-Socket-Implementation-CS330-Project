@@ -62,7 +62,8 @@ class Server:
                     logging.info("Received Client Message correctly")
                     logging.info(f"Client: {message.decode('utf-8')}")
                 else:
-                    logging.info("Enter is_valid_checksum else block")
+                    self.message_queue.put(b"Error: The Received Message is not correct")
+                    logging.info("Error: The Received Message is not correct")
             except socket.error as e:
                 logging.error(f"Socket error: {e}")
                 break
