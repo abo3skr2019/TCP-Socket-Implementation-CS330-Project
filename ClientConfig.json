@@ -1,5 +1,5 @@
 {
-    "network_interface": "192.168.1.150",
+    "network_interface": "0.0.0.0",
     "broadcast_port": 5000,
     "error_simulation": {
         "enabled": false,
