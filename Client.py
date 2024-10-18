@@ -32,8 +32,8 @@ class Client:
         return bytes(data)
 
     def receive(self):
-        AcknowledgementUTF8 = 'ACK'.encode('utf-8')
-        ErrorAcknowledgementUTF8 = 'Error'.encode('utf-8')
+        acknowledgement_utf8 = 'ACK'.encode('utf-8')
+        error_acknowledgement_utf = 'Error'.encode('utf-8')
 
         while True:
             try:
@@ -41,10 +41,10 @@ class Client:
                 if not data:
                     logging.error("Server has disconnected.")
                     break
-                if data.startswith(AcknowledgementUTF8):
+                if data.startswith(acknowledgement_utf8):
                     logging.info(data.decode('utf-8'))
                     continue
-                if data.startswith(ErrorAcknowledgementUTF8):
+                if data.startswith(error_acknowledgement_utf):
                     logging.error(data.decode('utf-8'))
                     continue
                 # Extract the message and checksum
@@ -120,22 +120,22 @@ class Client:
                     logging.info(f"{i + 1}. {ip}:{port}")
                 choice = input("Select a server by number or press Enter to input manually: ")
                 if choice.isdigit() and 1 <= int(choice) <= len(servers):
-                    Server, port = servers[int(choice) - 1]
+                    selected_server, port = servers[int(choice) - 1]
                 else:
-                    Server = input("Server: ")
+                    selected_server = input("Server: ")
                     port = int(input("Port: "))
             else:
                 logging.info("No servers discovered.")
-                Server = input("Server: ")
+                selected_server = input("Server: ")
                 port = int(input("Port: "))
         else:
-            Server = input("Server: ")
+            selected_server = input("Server: ")
             port = int(input("Port: "))
 
         try:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.sock.bind((self.interface_ip, 0))
-            self.sock.connect((Server, port))
+            self.sock.connect((selected_server, port))
             logging.info("Successfully connected to server")
         except:
             logging.error("Server is down, please try later.")

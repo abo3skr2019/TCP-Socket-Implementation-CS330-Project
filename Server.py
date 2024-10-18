@@ -40,17 +40,17 @@ class Server:
 
     def handle_client(self, client_socket: socket.socket) -> None:
         self.client_socket = client_socket
-        AcknowledgementUTF8 = 'ACK'.encode('utf-8')
-        ErrorAcknowledgementUTF8 = 'Error'.encode('utf-8')
+        acknowledgement_utf8 = 'ACK'.encode('utf-8')
+        error_acknowledgement_utf = 'Error'.encode('utf-8')
         while not self.shutdown_flag.is_set():
             try:
                 message = client_socket.recv(self.buffer_size)
                 if not message:
                     break
-                if message.startswith(AcknowledgementUTF8):
+                if message.startswith(acknowledgement_utf8):
                     logging.info(f"Received ACK from client : {message.decode('utf-8')}")
                     continue
-                if message.startswith(ErrorAcknowledgementUTF8):
+                if message.startswith(error_acknowledgement_utf):
                     logging.error("Received Error from client")
                     continue
                 received_checksum = struct.unpack('!H', message[-2:])[0]
