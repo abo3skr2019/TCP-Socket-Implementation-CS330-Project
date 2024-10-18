@@ -1,4 +1,3 @@
-#Client.py
 import socket
 import threading
 import json
@@ -7,6 +6,7 @@ import random
 import sys
 import logging
 import signal
+from queue import Queue
 from MiscHelperClasses import ConfigLoader, Logger, SignalHandler
 from SocketHelperClasses import Checksum
 
@@ -23,6 +23,7 @@ class Client:
         self.discoverable = discoverable
         self.signal_handler = SignalHandler(client=self)
         self.signal_handler.setup_signal_handling()
+        self.message_queue = Queue()
 
     def introduce_error(self, data, probability):
         if random.random() < probability:
@@ -42,10 +43,10 @@ class Client:
                     logging.error("Server has disconnected.")
                     break
                 if data.startswith(acknowledgement_utf8):
-                    logging.info(data.decode('utf-8'))
+                    self.message_queue.put(data.decode('utf-8'))
                     continue
                 if data.startswith(error_acknowledgement_utf):
-                    logging.error(data.decode('utf-8'))
+                    self.message_queue.put(data.decode('utf-8'))
                     continue
                 # Extract the message and checksum
                 received_checksum = struct.unpack('!H', data[-2:])[0]
@@ -55,11 +56,11 @@ class Client:
                 # Validate the checksum
                 if is_valid_checksum:
                     self.sock.sendall(b"ACK:Your Message has been received correctly")
-                    logging.info("received Server Message correctly")
-                    logging.info(f"Server: {message.decode('utf-8')}")
+                    self.message_queue.put("received Server Message correctly")
+                    self.message_queue.put(f"Server: {message.decode('utf-8')}")
                 else:
                     self.sock.sendall(b"Error: The Received Message is not correct")
-                    logging.error("Error: The Received Message is not correct")
+                    self.message_queue.put("Error: The Received Message is not correct")
             except:
                 logging.error("You have been disconnected from the server")
                 sys.exit(0)
@@ -157,6 +158,9 @@ class Client:
         receive_thread.start()
 
         while True:
+            while not self.message_queue.empty():
+                print(self.message_queue.get())
+
             message = input("Enter message to send to server: ")
             if message.lower() == "quit":
                 logging.info("Exiting...")
@@ -173,6 +177,7 @@ class Client:
             if self.error_simulation_enabled:
                 message_with_checksum = self.introduce_error(message_with_checksum, self.error_probability)
             self.sock.sendall(message_with_checksum)
+
 if __name__ == "__main__":
     logger = Logger.setup_logging()
     config_file = 'ClientConfig.json'
