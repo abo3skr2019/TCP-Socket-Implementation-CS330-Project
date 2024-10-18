@@ -256,4 +256,20 @@ class Client:
                     logging.info("Exiting...")
                     self.sock.close()
                     break
-                if
+                if not message:
+                    logging.error("The entered message is not empty; an empty message is not valid")
+                    continue
+
+                message_bytes = message.encode('utf-8')
+                checksum = Checksum.calculate(message_bytes)
+                message_with_checksum = message_bytes + struct.pack('!H', checksum)
+
+                if self.error_simulation_enabled:
+                    message_with_checksum = self.introduce_error(message_with_checksum, self.error_probability)
+                self.sock.sendall(message_with_checksum)
+                
+if __name__ == "__main__":
+    logger = Logger.setup_logging()
+    config_file = 'ClientConfig.json'
+    client = Client(config_file)
+    client.start_client()
