@@ -43,6 +43,7 @@ class Checksum:
 
 
 class SocketHelper:
+# Currently Unused and Untested
     @staticmethod
     def setup_socket(socket_type: int, options: list = None, bind_address: tuple = None) -> socket.socket:
         """
