@@ -6,7 +6,7 @@ import logging
 from queue import Queue, Empty
 from MiscHelperClasses import ConfigLoader, Logger, SignalHandler
 from SocketHelperClasses import Checksum
-
+from threading import Condition
 
 class Server:
     def __init__(self, config_file: dict):
@@ -65,7 +65,7 @@ class Server:
         error_acknowledgement_utf = 'Error:'.encode('utf-8')
 
         if message.startswith(acknowledgement_utf8):
-            logging.info(f"Received ACK from client: {message.decode('utf-8')}")
+            logging.info("Received ACK from client")
             return
         if message.startswith(error_acknowledgement_utf):
             logging.error("Received Error from client")
@@ -96,16 +96,18 @@ class Server:
     def handle_user_input(self):
         while not self.shutdown_flag.is_set() and self.client_socket:
             try:
-                user_message = input("Enter message to send to client: ")
-                if user_message.lower() == "quit":
-                    break
-                if not user_message:
-                    logging.error("The entered message is empty; an empty message is not valid")
-                else:
-                    message_bytes = user_message.encode('utf-8')
-                    checksum = Checksum.calculate(message_bytes)
-                    message_with_checksum = message_bytes + struct.pack('!H', checksum)
-                    self.message_queue.put(message_with_checksum)
+                with self.ack_condition:
+                    user_message = input("Enter message to send to client: ")
+                    if user_message.lower() == "quit":
+                        break
+                    if not user_message:
+                        logging.error("The entered message is empty; an empty message is not valid")
+                    else:
+                        message_bytes = user_message.encode('utf-8')
+                        checksum = Checksum.calculate(message_bytes)
+                        message_with_checksum = message_bytes + struct.pack('!H', checksum)
+                        self.message_queue.put(message_with_checksum)
+                        self.ack_condition.wait()
             except Exception as e:
                 logging.error(f"Error handling user input: {e}")
 
