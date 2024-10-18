@@ -10,6 +10,11 @@ from threading import Condition
 
 class Server:
     def __init__(self, config_file: dict):
+        """
+        Initialize the Server object
+        parameters:
+            config_file: The path to the configuration file
+        """
         self.shutdown_flag = threading.Event()
         self.server_socket = None
         self.config_loader = ConfigLoader(config_file)
@@ -27,6 +32,14 @@ class Server:
 
     @staticmethod
     def get_actual_ip(default_ip: str, external_ip_check: str, external_ip_port: int) -> str:
+        """
+        Get the actual IP address of the server through trying to connect to an external IP address
+        parameters:
+            default_ip: The default IP address to use if the actual IP cannot be determined
+            external_ip_check: The external IP address to check
+            external_ip_port: The port to check the external IP address
+        :return: The actual IP address of the server
+        """
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as temp_socket:
             try:
                 logging.info("Trying to connect to outside world")
@@ -38,6 +51,13 @@ class Server:
         return actual_ip
 
     def handle_client(self, client_socket: socket.socket) -> None:
+        """
+
+        Handle the client connection by receiving and processing messages
+        
+        parameters:
+            client_socket: The client socket object
+        """
         self.client_socket = client_socket
         while not self.shutdown_flag.is_set():
             try:
@@ -58,10 +78,22 @@ class Server:
         client_socket.close()
 
     def receive_message(self, client_socket: socket.socket) -> bytes:
+        """
+        Receive a message from the client
+
+        parameters:
+            client_socket: The client socket object
+        return: The received message
+        """
         message = client_socket.recv(self.buffer_size)
         return message if message else None
 
     def process_message(self, message: bytes) -> None:
+        """
+        Process the received message and place it in the message queue
+        parameters:
+            message: The received message
+        """
         acknowledgement_utf8 = 'ACK:'.encode('utf-8')
         error_acknowledgement_utf = 'Error:'.encode('utf-8')
 
@@ -86,6 +118,9 @@ class Server:
             logging.info("Error: The Received Message is not correct")
 
     def send_message_to_client(self):
+        """
+        gets a message from the queue and sends it to the client
+        """
         while not self.shutdown_flag.is_set() and self.client_socket:
             try:
                 # Check for messages in the queue
@@ -99,6 +134,10 @@ class Server:
                 logging.error(f"Error sending message to client: {e}")
 
     def handle_user_input(self):
+        """
+        Handle user input to send to the client this runs in a separate thread to avoid blocking the main thread
+        it also is notified when an ACK is received from the client 
+        """
         while not self.shutdown_flag.is_set() and self.client_socket:
             try:
                 with self.ack_condition:
@@ -118,6 +157,16 @@ class Server:
 
     @staticmethod
     def setup_socket(socket_type: int, options: list = None, bind_address: tuple = None) -> socket.socket:
+        """
+        Setup a socket with the specified options
+
+        parameters:
+            socket_type: The type of socket to create
+            options: The options to set on the socket
+            bind_address: The address to bind the socket to
+
+        return: The created socket object
+        """
         set_socket = socket.socket(socket.AF_INET, socket_type)
         if options:
             for opt in options:
@@ -127,6 +176,7 @@ class Server:
         return set_socket
 
     def start_server(self) -> None:
+
         network_interface = self.config['network_interface']
         port = self.config['port']
         self.server_socket = self.setup_socket(socket.SOCK_STREAM, bind_address=(network_interface, port))
@@ -151,6 +201,9 @@ class Server:
                 logging.error(f"Socket error: {e}")
 
     def broadcast_listener(self) -> None:
+        """
+        Listen for broadcast messages from clients and respond with the server details    
+        """
         logging.info("Broadcast listener started")
         try:
             udp_options = [
