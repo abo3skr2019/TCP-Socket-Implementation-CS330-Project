@@ -90,20 +90,25 @@ class Server:
                         self.client_socket.sendall(message)
                 except Empty:
                     pass
+            except Exception as e:
+                logging.error(f"Error sending message to client: {e}")
 
-                # Allow user to input messages
+    def handle_user_input(self):
+        while not self.shutdown_flag.is_set() and self.client_socket:
+            try:
                 user_message = input("Enter message to send to client: ")
                 if user_message.lower() == "quit":
                     break
                 if not user_message:
-                    logging.error("the entered message is not empty; an empty message in not valid")
+                    logging.error("The entered message is empty; an empty message is not valid")
                 else:
                     message_bytes = user_message.encode('utf-8')
                     checksum = Checksum.calculate(message_bytes)
                     message_with_checksum = message_bytes + struct.pack('!H', checksum)
-                    self.client_socket.sendall(message_with_checksum)
+                    self.message_queue.put(message_with_checksum)
             except Exception as e:
-                logging.error(f"Error sending message to client: {e}")
+                logging.error(f"Error handling user input: {e}")
+
     @staticmethod
     def setup_socket(socket_type: int, options: list = None, bind_address: tuple = None) -> socket.socket:
         set_socket = socket.socket(socket.AF_INET, socket_type)
@@ -129,7 +134,8 @@ class Server:
                 client_handler.start()
                 send_thread = threading.Thread(target=self.send_message_to_client)
                 send_thread.start()
-
+                input_thread = threading.Thread(target=self.handle_user_input)
+                input_thread.start()
             except socket.timeout:
                 continue
             except socket.error as e:
