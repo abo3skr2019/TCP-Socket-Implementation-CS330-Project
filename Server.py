@@ -61,8 +61,8 @@ class Server:
         return message if message else None
 
     def process_message(self, message: bytes) -> None:
-        acknowledgement_utf8 = 'ACK'.encode('utf-8')
-        error_acknowledgement_utf = 'Error'.encode('utf-8')
+        acknowledgement_utf8 = 'ACK:'.encode('utf-8')
+        error_acknowledgement_utf = 'Error:'.encode('utf-8')
 
         if message.startswith(acknowledgement_utf8):
             logging.info(f"Received ACK from client: {message.decode('utf-8')}")
@@ -74,7 +74,6 @@ class Server:
         received_checksum = struct.unpack('!H', message[-2:])[0]
         message_body = message[:-2]
         if Checksum.validate(message_body, received_checksum):
-            logging.info("Checksum validated")
             self.message_queue.put(b"ACK:Your Message has been received correctly")
             logging.info(f"Client: {message_body.decode('utf-8')}")
         else:
