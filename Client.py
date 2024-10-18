@@ -112,6 +112,11 @@ class Client:
         return servers
 
     def start_client(self):
+        selected_server, port = self.select_server()
+        self.connect_to_server(selected_server, port)
+        self.handle_messages()
+
+    def select_server(self):
         if self.discoverable:
             servers = self.discover_servers()
             if servers:
@@ -120,18 +125,21 @@ class Client:
                     logging.info(f"{i + 1}. {ip}:{port}")
                 choice = input("Select a server by number or press Enter to input manually: ")
                 if choice.isdigit() and 1 <= int(choice) <= len(servers):
-                    selected_server, port = servers[int(choice) - 1]
+                    return servers[int(choice) - 1]
                 else:
-                    selected_server = input("Server: ")
-                    port = int(input("Port: "))
+                    return self.manual_server_input()
             else:
                 logging.info("No servers discovered.")
-                selected_server = input("Server: ")
-                port = int(input("Port: "))
+                return self.manual_server_input()
         else:
-            selected_server = input("Server: ")
-            port = int(input("Port: "))
+            return self.manual_server_input()
 
+    def manual_server_input(self):
+        selected_server = input("Server: ")
+        port = int(input("Port: "))
+        return selected_server, port
+
+    def connect_to_server(self, selected_server, port):
         try:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.sock.bind((self.interface_ip, 0))
@@ -144,6 +152,7 @@ class Client:
 
         signal.signal(signal.SIGINT, self.signal_handler.handle_signal)
 
+    def handle_messages(self):
         receive_thread = threading.Thread(target=self.receive)
         receive_thread.start()
 
@@ -154,7 +163,7 @@ class Client:
                 self.sock.close()
                 break
             if not message:
-                logging.error("the entered message is not empty; an empty message in not valid")
+                logging.error("The entered message is not empty; an empty message is not valid")
                 continue
 
             message_bytes = message.encode('utf-8')
@@ -165,7 +174,6 @@ class Client:
                 message_with_checksum = self.introduce_error(message_with_checksum, self.error_probability)
             logging.info(f"Sent Message {message_with_checksum}")
             self.sock.sendall(message_with_checksum)
-
 if __name__ == "__main__":
     logger = Logger.setup_logging()
     config_file = 'ClientConfig.json'

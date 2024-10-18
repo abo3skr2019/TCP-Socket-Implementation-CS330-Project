@@ -2,8 +2,6 @@ import socket
 import threading
 import struct
 import json
-import sys
-import signal
 import logging
 from queue import Queue, Empty
 from MiscHelperClasses import ConfigLoader, Logger, SignalHandler
@@ -40,41 +38,48 @@ class Server:
 
     def handle_client(self, client_socket: socket.socket) -> None:
         self.client_socket = client_socket
-        acknowledgement_utf8 = 'ACK'.encode('utf-8')
-        error_acknowledgement_utf = 'Error'.encode('utf-8')
         while not self.shutdown_flag.is_set():
             try:
-                message = client_socket.recv(self.buffer_size)
-                if not message:
+                message = self.receive_message(client_socket)
+                if message is None:
                     break
-                if message.startswith(acknowledgement_utf8):
-                    logging.info(f"Received ACK from client : {message.decode('utf-8')}")
-                    continue
-                if message.startswith(error_acknowledgement_utf):
-                    logging.error("Received Error from client")
-                    continue
-                received_checksum = struct.unpack('!H', message[-2:])[0]
-                message = message[:-2]
-                is_valid_checksum = Checksum.validate(message, received_checksum)
-                if is_valid_checksum:
-                    logging.info(f"Checksum.validate = {is_valid_checksum}")
-                    self.message_queue.put(b"ACK:Your Message has been received correctly")
-                    logging.info("Received Client Message correctly")
-                    logging.info(f"Client: {message.decode('utf-8')}")
-                else:
-                    self.message_queue.put(b"Error: The Received Message is not correct")
-                    logging.info("Error: The Received Message is not correct")
-            except socket.error as e:
+                self.process_message(message)
+            except(socket.error) as e:
                 logging.error(f"Socket error: {e}")
                 break
             except struct.error as e:
                 logging.error(f"Struct error: {e}")
                 break
             except Exception as e:
-                logging.error(f"Unexpected error: {e}")
+                logging.error(f"Unexpected Error encountered: {e}")
                 break
 
         client_socket.close()
+
+    def receive_message(self, client_socket: socket.socket) -> bytes:
+        message = client_socket.recv(self.buffer_size)
+        return message if message else None
+
+    def process_message(self, message: bytes) -> None:
+        acknowledgement_utf8 = 'ACK'.encode('utf-8')
+        error_acknowledgement_utf = 'Error'.encode('utf-8')
+
+        if message.startswith(acknowledgement_utf8):
+            logging.info(f"Received ACK from client: {message.decode('utf-8')}")
+            return
+        if message.startswith(error_acknowledgement_utf):
+            logging.error("Received Error from client")
+            return
+
+        received_checksum = struct.unpack('!H', message[-2:])[0]
+        message_body = message[:-2]
+        if Checksum.validate(message_body, received_checksum):
+            logging.info("Checksum validated")
+            self.message_queue.put(b"ACK:Your Message has been received correctly")
+            logging.info(f"Client: {message_body.decode('utf-8')}")
+        else:
+            self.message_queue.put(b"Error: The Received Message is not correct")
+            logging.info("Error: The Received Message is not correct")
 
     def send_message_to_client(self):
         while not self.shutdown_flag.is_set() and self.client_socket:

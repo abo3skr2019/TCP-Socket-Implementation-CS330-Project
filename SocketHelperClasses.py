@@ -57,6 +57,7 @@ class SocketHelper:
         return set_socket
 
 class ConnectionManager:
+# Currently UnTested and Unused
     def __init__(self, config):
         self.buffer_size = config.get['buffer_size']
         self.error_simulation_enabled = config.get['error_simulation_enabled']
