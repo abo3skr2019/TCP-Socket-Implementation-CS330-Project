@@ -161,6 +161,8 @@ class Client:
     def handle_messages(self):
         receive_thread = threading.Thread(target=self.receive)
         receive_thread.start()
+        if self.error_simulation_enabled:
+            logging.info(f"Error simulation enabled with probability {self.error_probability}")
 
         # Prompt for the first message immediately after connecting
         message = input("Enter message to send to server: ")
