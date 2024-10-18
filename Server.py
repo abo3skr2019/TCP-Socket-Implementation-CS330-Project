@@ -23,6 +23,7 @@ class Server:
         self.signal_handler.setup_signal_handling()
         self.client_socket = None
         self.message_queue = Queue()
+        self.ack_condition = Condition()
 
     @staticmethod
     def get_actual_ip(default_ip: str, external_ip_check: str, external_ip_port: int) -> str:
@@ -66,9 +67,13 @@ class Server:
 
         if message.startswith(acknowledgement_utf8):
             logging.info("Received ACK from client")
+            with self.ack_condition:
+                self.ack_condition.notify()
             return
         if message.startswith(error_acknowledgement_utf):
             logging.error("Received Error from client")
+            with self.ack_condition:
+                self.ack_condition.notify()
             return
 
         received_checksum = struct.unpack('!H', message[-2:])[0]
@@ -178,9 +183,7 @@ class Server:
                     break
                 logging.error(f"Socket error: {e}")
 
-
 if __name__ == "__main__":
-
     logger = Logger.setup_logging()
     config_file = 'ServerConfig.json'
 
