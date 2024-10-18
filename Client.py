@@ -157,7 +157,7 @@ class Client:
         receive_thread.start()
 
         while True:
-            message = input()
+            message = input("Enter message to send to server: ")
             if message.lower() == "quit":
                 logging.info("Exiting...")
                 self.sock.close()
@@ -172,7 +172,6 @@ class Client:
 
             if self.error_simulation_enabled:
                 message_with_checksum = self.introduce_error(message_with_checksum, self.error_probability)
-            logging.info(f"Sent Message {message_with_checksum}")
             self.sock.sendall(message_with_checksum)
 if __name__ == "__main__":
     logger = Logger.setup_logging()
