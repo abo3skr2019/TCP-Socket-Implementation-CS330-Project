@@ -12,9 +12,11 @@ class Server:
     def __init__(self, config_file: dict):
         """
         Initialize the Server object
+       
         parameters:
             config_file: The path to the configuration file
         """
+
         self.shutdown_flag = threading.Event()
         self.server_socket = None
         self.config_loader = ConfigLoader(config_file)
@@ -34,12 +36,15 @@ class Server:
     def get_actual_ip(default_ip: str, external_ip_check: str, external_ip_port: int) -> str:
         """
         Get the actual IP address of the server through trying to connect to an external IP address
+        
         parameters:
-            default_ip: The default IP address to use if the actual IP cannot be determined
-            external_ip_check: The external IP address to check
-            external_ip_port: The port to check the external IP address
-        :return: The actual IP address of the server
+            (default_ip): The default IP address to use if the actual IP cannot be determined
+            (external_ip_check): The external IP address to check
+            (external_ip_port): The port to check the external IP address
+        return:
+            The actual IP address of the server
         """
+
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as temp_socket:
             try:
                 logging.info("Trying to connect to outside world")
@@ -56,7 +61,7 @@ class Server:
         Handle the client connection by receiving and processing messages
         
         parameters:
-            client_socket: The client socket object
+            (client_socket): The client socket object
         """
         self.client_socket = client_socket
         while not self.shutdown_flag.is_set():
@@ -83,7 +88,8 @@ class Server:
 
         parameters:
             client_socket: The client socket object
-        return: The received message
+        return: 
+            The received message
         """
         message = client_socket.recv(self.buffer_size)
         return message if message else None
@@ -92,7 +98,7 @@ class Server:
         """
         Process the received message and place it in the message queue
         parameters:
-            message: The received message
+            (message): The received message
         """
         acknowledgement_utf8 = 'ACK:'.encode('utf-8')
         error_acknowledgement_utf = 'Error:'.encode('utf-8')
@@ -165,7 +171,8 @@ class Server:
             options: The options to set on the socket
             bind_address: The address to bind the socket to
 
-        return: The created socket object
+        return: 
+            The created socket object
         """
         set_socket = socket.socket(socket.AF_INET, socket_type)
         if options:
