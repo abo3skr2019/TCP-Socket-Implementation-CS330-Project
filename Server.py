@@ -122,7 +122,8 @@ class Server:
         else:
             self.message_queue.put(b"Error: The Received Message is not correct")
             logging.info("Error: The Received Message is not correct")
-
+        with self.ack_condition:
+            self.ack_condition.notify()
     def send_message_to_client(self):
         """
         gets a message from the queue and sends it to the client
@@ -147,6 +148,7 @@ class Server:
         while not self.shutdown_flag.is_set() and self.client_socket:
             try:
                 with self.ack_condition:
+                    self.ack_condition.wait()  # Wait for the log messages to be printed
                     user_message = input("Enter message to send to client: ")
                     if user_message.lower() == "quit":
                         break
@@ -157,10 +159,9 @@ class Server:
                         checksum = Checksum.calculate(message_bytes)
                         message_with_checksum = message_bytes + struct.pack('!H', checksum)
                         self.message_queue.put(message_with_checksum)
-                        self.ack_condition.wait()
+                        self.ack_condition.notify()  # Notify after the user input is handled
             except Exception as e:
                 logging.error(f"Error handling user input: {e}")
-
     @staticmethod
     def setup_socket(socket_type: int, options: list = None, bind_address: tuple = None) -> socket.socket:
         """
