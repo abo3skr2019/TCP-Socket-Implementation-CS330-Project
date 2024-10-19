@@ -6,10 +6,17 @@ import logging
 from queue import Queue, Empty
 from MiscHelperClasses import ConfigLoader, Logger, SignalHandler
 from SocketHelperClasses import Checksum
-
+from threading import Condition
 
 class Server:
     def __init__(self, config_file: dict):
+        """
+        Initialize the Server object
+       
+        parameters:
+            config_file: The path to the configuration file
+        """
+
         self.shutdown_flag = threading.Event()
         self.server_socket = None
         self.config_loader = ConfigLoader(config_file)
@@ -23,9 +30,21 @@ class Server:
         self.signal_handler.setup_signal_handling()
         self.client_socket = None
         self.message_queue = Queue()
+        self.ack_condition = Condition()
 
     @staticmethod
     def get_actual_ip(default_ip: str, external_ip_check: str, external_ip_port: int) -> str:
+        """
+        Get the actual IP address of the server through trying to connect to an external IP address
+        
+        parameters:
+            (default_ip): The default IP address to use if the actual IP cannot be determined
+            (external_ip_check): The external IP address to check
+            (external_ip_port): The port to check the external IP address
+        return:
+            The actual IP address of the server
+        """
+
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as temp_socket:
             try:
                 logging.info("Trying to connect to outside world")
@@ -37,6 +56,13 @@ class Server:
         return actual_ip
 
     def handle_client(self, client_socket: socket.socket) -> None:
+        """
+
+        Handle the client connection by receiving and processing messages
+        
+        parameters:
+            (client_socket): The client socket object
+        """
         self.client_socket = client_socket
         while not self.shutdown_flag.is_set():
             try:
@@ -57,18 +83,35 @@ class Server:
         client_socket.close()
 
     def receive_message(self, client_socket: socket.socket) -> bytes:
+        """
+        Receive a message from the client
+
+        parameters:
+            client_socket: The client socket object
+        return: 
+            The received message
+        """
         message = client_socket.recv(self.buffer_size)
         return message if message else None
 
     def process_message(self, message: bytes) -> None:
+        """
+        Process the received message and place it in the message queue
+        parameters:
+            (message): The received message
+        """
         acknowledgement_utf8 = 'ACK:'.encode('utf-8')
         error_acknowledgement_utf = 'Error:'.encode('utf-8')
 
         if message.startswith(acknowledgement_utf8):
-            logging.info(f"Received ACK from client: {message.decode('utf-8')}")
+            logging.info("Received ACK from client")
+            with self.ack_condition:
+                self.ack_condition.notify()
             return
         if message.startswith(error_acknowledgement_utf):
             logging.error("Received Error from client")
+            with self.ack_condition:
+                self.ack_condition.notify()
             return
 
         received_checksum = struct.unpack('!H', message[-2:])[0]
@@ -81,6 +124,9 @@ class Server:
             logging.info("Error: The Received Message is not correct")
 
     def send_message_to_client(self):
+        """
+        gets a message from the queue and sends it to the client
+        """
         while not self.shutdown_flag.is_set() and self.client_socket:
             try:
                 # Check for messages in the queue
@@ -94,23 +140,40 @@ class Server:
                 logging.error(f"Error sending message to client: {e}")
 
     def handle_user_input(self):
+        """
+        Handle user input to send to the client this runs in a separate thread to avoid blocking the main thread
+        it also is notified when an ACK is received from the client 
+        """
         while not self.shutdown_flag.is_set() and self.client_socket:
             try:
-                user_message = input("Enter message to send to client: ")
-                if user_message.lower() == "quit":
-                    break
-                if not user_message:
-                    logging.error("The entered message is empty; an empty message is not valid")
-                else:
-                    message_bytes = user_message.encode('utf-8')
-                    checksum = Checksum.calculate(message_bytes)
-                    message_with_checksum = message_bytes + struct.pack('!H', checksum)
-                    self.message_queue.put(message_with_checksum)
+                with self.ack_condition:
+                    user_message = input("Enter message to send to client: ")
+                    if user_message.lower() == "quit":
+                        break
+                    if not user_message:
+                        logging.error("The entered message is empty; an empty message is not valid")
+                    else:
+                        message_bytes = user_message.encode('utf-8')
+                        checksum = Checksum.calculate(message_bytes)
+                        message_with_checksum = message_bytes + struct.pack('!H', checksum)
+                        self.message_queue.put(message_with_checksum)
+                        self.ack_condition.wait()
             except Exception as e:
                 logging.error(f"Error handling user input: {e}")
 
     @staticmethod
     def setup_socket(socket_type: int, options: list = None, bind_address: tuple = None) -> socket.socket:
+        """
+        Setup a socket with the specified options
+
+        parameters:
+            socket_type: The type of socket to create
+            options: The options to set on the socket
+            bind_address: The address to bind the socket to
+
+        return: 
+            The created socket object
+        """
         set_socket = socket.socket(socket.AF_INET, socket_type)
         if options:
             for opt in options:
@@ -120,6 +183,7 @@ class Server:
         return set_socket
 
     def start_server(self) -> None:
+
         network_interface = self.config['network_interface']
         port = self.config['port']
         self.server_socket = self.setup_socket(socket.SOCK_STREAM, bind_address=(network_interface, port))
@@ -144,6 +208,9 @@ class Server:
                 logging.error(f"Socket error: {e}")
 
     def broadcast_listener(self) -> None:
+        """
+        Listen for broadcast messages from clients and respond with the server details    
+        """
         logging.info("Broadcast listener started")
         try:
             udp_options = [
@@ -176,9 +243,7 @@ class Server:
                     break
                 logging.error(f"Socket error: {e}")
 
-
 if __name__ == "__main__":
-
     logger = Logger.setup_logging()
     config_file = 'ServerConfig.json'
 
